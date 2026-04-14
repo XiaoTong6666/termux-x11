@@ -3,6 +3,7 @@ package com.termux.x11.utils;
 import android.annotation.SuppressLint;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -16,21 +17,29 @@ import android.widget.EditText;
 import androidx.annotation.NonNull;
 import androidx.viewpager.widget.PagerAdapter;
 import androidx.viewpager.widget.ViewPager;
-
+// ZeroTermux modify {@
+//import com.termux.shared.termux.extrakeys.ExtraKeysView;
 import com.termux.shared.termux.x11.ExtraKeysView;
+// @}
 import com.termux.x11.MainActivity;
 import com.termux.x11.R;
 
 public class X11ToolbarViewPager {
     public static class PageAdapter extends PagerAdapter {
+		// ZeroTermux add {@
         private MainActivity.SettingsClick mSettingsClick;
+		// @}
         final MainActivity mActivity;
         private final View.OnKeyListener mEventListener;
-
+		// ZeroTermux modify {@
+		// public PageAdapter(MainActivity activity, View.OnKeyListener listen) {
         public PageAdapter(MainActivity activity, View.OnKeyListener listen, MainActivity.SettingsClick settingsClick) {
-            this.mActivity = activity;
+        //@}
+			    this.mActivity = activity;
             this.mEventListener = listen;
+			// ZeroTermux add {@
             this.mSettingsClick = settingsClick;
+			// @}
         }
 
         @Override
@@ -47,18 +56,30 @@ public class X11ToolbarViewPager {
         @NonNull
         @Override
         public Object instantiateItem(@NonNull ViewGroup collection, int position) {
+            // ZeroTermux modify {@
+            //LayoutInflater inflater = LayoutInflater.from(mActivity);
             LayoutInflater inflater = LayoutInflater.from(mActivity.mActivity);
+            // @}
             View layout;
             if (position == 0) {
+                // ZeroTermux modify {@
+               // layout = inflater.inflate(R.layout.view_terminal_toolbar_extra_keys, collection, false);
                 layout = inflater.inflate(R.layout.view_terminal_toolbar_extra_keys_x11, collection, false);
-                ExtraKeysView extraKeysView = (ExtraKeysView) layout;
+                // @}
+                com.termux.shared.termux.x11.ExtraKeysView extraKeysView = (ExtraKeysView) layout;
+				// ZeroTermux modify {@
                 mActivity.mExtraKeys = new TermuxX11ExtraKeys(mEventListener, mActivity, extraKeysView, mSettingsClick);
+			    // mActivity.mExtraKeys = new TermuxX11ExtraKeys(mEventListener, mActivity, extraKeysView);
+				// @}
                 extraKeysView.reload();
                 extraKeysView.setExtraKeysViewClient(mActivity.mExtraKeys);
                 extraKeysView.setOnHoverListener((v, e) -> true);
                 extraKeysView.setOnGenericMotionListener((v, e) -> true);
             } else {
+                // ZeroTermux modify {@
+                //layout = inflater.inflate(R.layout.view_terminal_toolbar_text_input, collection, false);
                 layout = inflater.inflate(R.layout.view_terminal_toolbar_text_input_x11, collection, false);
+                // @}
                 final EditText editText = layout.findViewById(R.id.terminal_toolbar_text_input);
                 final Button back = layout.findViewById(R.id.terminal_toolbar_back_button);
 

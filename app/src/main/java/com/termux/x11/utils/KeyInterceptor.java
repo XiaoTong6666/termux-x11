@@ -76,7 +76,7 @@ public class KeyInterceptor extends AccessibilityService {
 
     public static void recheck() {
         MainActivity a = MainActivity.getInstance();
-        boolean shouldBeEnabled = (a != null && self != null) && (a.mActivity.hasWindowFocus() || !self.pressedKeys.isEmpty());
+        boolean shouldBeEnabled = (a != null && self != null) && (a.hasWindowFocus() || !self.pressedKeys.isEmpty());
         if (self != null && shouldBeEnabled != self.enabled) {
             if (shouldBeEnabled) {
                 handler.removeCallbacks(disableImmediatelyCallback);
@@ -90,6 +90,7 @@ public class KeyInterceptor extends AccessibilityService {
         }
     }
 
+	// ZeroTermux delete {@
    /* @Override
     public boolean onKeyEvent(KeyEvent event) {
         Log.i("TAG", "handleKey onKeyEvent...");
@@ -116,6 +117,7 @@ public class KeyInterceptor extends AccessibilityService {
 
         return ret;
     }*/
+	// @}
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {}

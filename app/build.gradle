@@ -1,12 +1,16 @@
+// ZeroTermux aar modify {@
 //apply plugin: 'com.android.application'
 apply plugin: 'com.android.library'
+// @}
 
 android {
     namespace 'com.termux.x11'
     //noinspection GrDeprecatedAPIUsage
     compileSdkVersion 34
     defaultConfig {
-        //applicationId "com.termux.x11"
+        // ZeroTermux aar delete {@
+        // applicationId "com.termux.x11"
+        // @}
         minSdkVersion 23
         targetSdkVersion 34
         versionCode 15
@@ -22,20 +26,18 @@ android {
         storePassword 'xrj45yWGLbsO7W0v'
         keyPassword 'xrj45yWGLbsO7W0v'
     }
-
+    // ZeroTermux aar modify {@
     defaultConfig {
         ndk {
             // 只保留 arm64-v8a
             abiFilters 'arm64-v8a'
         }
     }
-
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
-
    /* splits.abi {
         enable true
         reset()
@@ -43,29 +45,36 @@ android {
         include "x86", "x86_64", "armeabi-v7a", "arm64-v8a"
         universalApk true
     }*/
-
+    // @}
     compileOptions.sourceCompatibility JavaVersion.VERSION_1_9
     compileOptions.targetCompatibility JavaVersion.VERSION_1_9
+    // ZeroTermux aar delete {@
     //externalNativeBuild.cmake.path "src/main/cpp/CMakeLists.txt"
+    // @}
     packagingOptions.jniLibs.useLegacyPackaging false
     buildFeatures.aidl true
     buildFeatures.buildConfig true
     buildTypes.debug {
         signingConfig signingConfigs.debug
+        // ZeroTermux aar modify {@
         postprocessing {
             removeUnusedCode true
             //removeUnusedResources true
             obfuscate false
             optimizeCode true
         }
+        // minifyEnabled true
+        // shrinkResources true
+        // proguardFiles 'proguard-rules.pro'
+        // @}
     }
 }
 
 dependencies {
     //noinspection DifferentStdlibGradleVersion
-    implementation fileTree(include: ['*.jar', '*.aar'], dir: 'libs')
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.21"
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.1'
+
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.20"
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0'
     implementation 'androidx.preference:preference:1.2.1'
     compileOnly project(':shell-loader:stub')
 }

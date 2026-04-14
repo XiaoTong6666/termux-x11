@@ -133,7 +133,9 @@ public class TouchInputHandler {
     private boolean mIsDragging;
     private static DisplayManager mDisplayManager;
     private static int mDisplayRotation;
+    // ZeroTermux modify {@
     private MainActivity.SettingsClick mSettingsClick;
+    // @}
     private static final DisplayManager.DisplayListener mDisplayListener = new DisplayManager.DisplayListener() {
         @Override
         public void onDisplayAdded(int displayId) {
@@ -176,37 +178,52 @@ public class TouchInputHandler {
         mInjector = injector;
         mActivity = activity;
         if (mDisplayManager == null) {
+            // ZeroTermux modify {@
+            // mDisplayManager = (DisplayManager) mActivity.getSystemService(Context.DISPLAY_SERVICE);
             mDisplayManager = (DisplayManager) mActivity.mActivity.getSystemService(Context.DISPLAY_SERVICE);
+            // @}
             mDisplayRotation = mDisplayManager.getDisplay(Display.DEFAULT_DISPLAY).getRotation() % 4;
             mDisplayManager.registerDisplayListener(mDisplayListener, null);
         }
 
         GestureListener listener = new GestureListener();
+        // ZeroTermux modify {@
+        //mScroller = new GestureDetector(/*desktop*/ activity, listener, null, false);
         mScroller = new GestureDetector(/*desktop*/ activity.mActivity, listener, null, false);
+        // @}
 
         // If long-press is enabled, the gesture-detector will not emit any further onScroll
         // notifications after the onLongPress notification. Since onScroll is being used for
         // moving the cursor, it means that the cursor would become stuck if the finger were held
         // down too long.
         mScroller.setIsLongpressEnabled(false);
-
+        // ZeroTermux modify {@
+        //mTapDetector = new TapGestureDetector(/*desktop*/ activity, listener);
+        //mSwipePinchDetector = new SwipeDetector(/*desktop*/ activity);
         mTapDetector = new TapGestureDetector(/*desktop*/ activity.mActivity, listener);
         mSwipePinchDetector = new SwipeDetector(/*desktop*/ activity.mActivity);
+        // @}
 
         // The threshold needs to be bigger than the ScaledTouchSlop used by the gesture-detectors,
         // so that a gesture cannot be both a tap and a swipe. It also needs to be small enough so
         // that intentional swipes are usually detected.
-        float density = /*desktop*/ activity.mActivity.getResources().getDisplayMetrics().density;
+        float density = /*desktop*/ activity.getResources().getDisplayMetrics().density;
         mSwipeThreshold = 40 * density;
 
 //        mEdgeSlopInPx = ViewConfiguration.get(/*desktop*/ ctx).getScaledEdgeSlop();
 
         setInputMode(InputMode.TRACKPAD);
+        // ZeroTermux modify {@
+        //mDexListener = new DexListener(activity);
         mDexListener = new DexListener(activity.mActivity);
+        // @}
         mTouchpadHandler = isTouchpad ? null : new TouchInputHandler(activity, mRenderData, injector, true);
 
         refreshInputDevices();
+        // ZeroTermux modify {@
+        //((InputManager) mActivity.getSystemService(Context.INPUT_SERVICE)).registerInputDeviceListener(new InputManager.InputDeviceListener() {
         ((InputManager) mActivity.mActivity.getSystemService(Context.INPUT_SERVICE)).registerInputDeviceListener(new InputManager.InputDeviceListener() {
+        // @}
             @Override
             public void onInputDeviceAdded(int deviceId) {
                 InputDevice dev = InputDevice.getDevice(deviceId);
@@ -232,9 +249,14 @@ public class TouchInputHandler {
 
     }
 
+    // ZeroTermux modify {@
+    //public TouchInputHandler(MainActivity activity, final InputEventSender injector) {
     public TouchInputHandler(MainActivity activity, final InputEventSender injector, MainActivity.SettingsClick settingsClick) {
+     // @}
         this(activity, null, injector, false);
+        // ZeroTermux add {@
         this.mSettingsClick = settingsClick;
+        // @}
     }
 
     static public void refreshInputDevices() {
@@ -392,7 +414,10 @@ public class TouchInputHandler {
         else if (inputMode == InputMode.TOUCH)
             mInputStrategy = new InputStrategyInterface.NullInputStrategy();
         else if (inputMode == InputMode.SIMULATED_TOUCH)
+            // ZeroTermux modify {@
+            // mInputStrategy = new InputStrategyInterface.SimulatedTouchInputStrategy(mRenderData, mInjector, mActivity);
             mInputStrategy = new InputStrategyInterface.SimulatedTouchInputStrategy(mRenderData, mInjector, mActivity.mActivity);
+            // @}
         else
             mInputStrategy = new InputStrategyInterface.TrackpadInputStrategy(mInjector);
     }
@@ -405,7 +430,10 @@ public class TouchInputHandler {
 
         if (mInjector.pauseKeyInterceptingWithEsc) {
             if (mInjector.dexMetaKeyCapture)
+                // ZeroTermux modify {@
+                //SamsungDexUtils.dexMetaKeyCapture(mActivity, enabled);
                 SamsungDexUtils.dexMetaKeyCapture(mActivity.mActivity, enabled);
+                // @}
             keyIntercepting = enabled;
         }
     }
@@ -459,7 +487,10 @@ public class TouchInputHandler {
             mActivity.getLorieView().releasePointerCapture();
 
         keyIntercepting = !mInjector.pauseKeyInterceptingWithEsc || mActivity.getLorieView().hasPointerCapture();
+        // ZeroTermux modify {@
+        // SamsungDexUtils.dexMetaKeyCapture(mActivity, mInjector.dexMetaKeyCapture && keyIntercepting);
         SamsungDexUtils.dexMetaKeyCapture(mActivity.mActivity, mInjector.dexMetaKeyCapture && keyIntercepting);
+        // @}
 
         swipeUpAction = extractUserActionFromPreferences(p, "swipeUp");
         swipeDownAction = extractUserActionFromPreferences(p, "swipeDown");
@@ -478,12 +509,21 @@ public class TouchInputHandler {
             return noAction;
 
         switch(pref.asList().get()) {
+            // ZeroTermux modify {@
+            //case "toggle soft keyboard": return (key, down) -> { if (down) MainActivity.toggleKeyboardVisibility(mActivity); };
             case "toggle soft keyboard": return (key, down) -> { if (down) MainActivity.toggleKeyboardVisibility(mActivity.mActivity); };
+            // @}
             case "toggle additional key bar": return (key, down) -> { if (down) mActivity.toggleExtraKeys(); };
-            case "open preferences": return (key, down) -> { if (down) {mSettingsClick.onClick();}};
+            // ZeroTermux modify {@
+            //case "open preferences": return (key, down) -> { if (down) mActivity.startActivity(new Intent(mActivity, LoriePreferences.class) {{ setAction(Intent.ACTION_MAIN); }}); };
+            case "open preferences": return (key, down) -> { if (down) mActivity.mActivity.startActivity(new Intent(mActivity.mActivity, LoriePreferences.class) {{ setAction(Intent.ACTION_MAIN); }}); };
+            // @}
             case "release pointer and keyboard capture": return (key, down) -> { if (down) setCapturingEnabled(false); };
             case "toggle fullscreen": return (key, down) -> { if (down) MainActivity.prefs.fullscreen.put(!MainActivity.prefs.fullscreen.get()); };
+            // ZeroTermux modify {@
+            //case "exit": return (key, down) -> { if (down) mActivity.finish(); };
             case "exit": return (key, down) -> { if (down) mActivity.mActivity.finish(); };
+            // @}
             case "send volume up": return (key, down) -> mActivity.getLorieView().sendKeyEvent(0, KEYCODE_VOLUME_UP, down);
             case "send volume down": return (key, down) -> mActivity.getLorieView().sendKeyEvent(0, KEYCODE_VOLUME_DOWN, down);
             case "send media action": return (key, down) -> mActivity.getLorieView().sendKeyEvent(0, key, down);
@@ -498,21 +538,39 @@ public class TouchInputHandler {
 
         switch(pref.asList().get()) {
             case "open preferences":
+                // ZeroTermux modify {@
+                // return PendingIntent.getActivity(mActivity, requestCode, new Intent(mActivity, LoriePreferences.class) {{
                 return PendingIntent.getActivity(mActivity.mActivity, requestCode, new Intent(mActivity.mActivity, LoriePreferences.class) {{
+                // @}
                     putExtra("key", "value");
+                    // ZeroTermux modify {@
+                    //setPackage(mActivity.getPackageName());
                     setPackage(mActivity.mActivity.getPackageName());
+                    // @}
                     setAction(Intent.ACTION_MAIN);
                 }}, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             case "restart activity":
+                // ZeroTermux modify {@
+                //return PendingIntent.getActivity(mActivity, requestCode,
                 return PendingIntent.getActivity(mActivity.mActivity, requestCode,
+                // @}
+                        // ZeroTermux modify {@
+                        //Intent.makeRestartActivityTask(mActivity.getComponentName()), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
                         Intent.makeRestartActivityTask(mActivity.mActivity.getComponentName()), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                        // @}
             case "exit":
             case "toggle soft keyboard":
             case "toggle additional key bar":
             case "release pointer and keyboard capture":
+                // ZeroTermux modify {@
+                //return PendingIntent.getBroadcast(mActivity, requestCode, new Intent(MainActivity.ACTION_CUSTOM) {{
                 return PendingIntent.getBroadcast(mActivity.mActivity, requestCode, new Intent(MainActivity.ACTION_CUSTOM) {{
+                // @}
                     putExtra("what", name);
+                    // ZeroTermux modify {@
+                    //setPackage(mActivity.getPackageName());
                     setPackage(mActivity.mActivity.getPackageName());
+                    // @}
                 }}, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             default: return null;
         }
@@ -525,8 +583,11 @@ public class TouchInputHandler {
             return null;
 
         String key = pref.asList().get().replace(' ', '_');
-        int id = mActivity.mActivity.getResources().getIdentifier("notification_" + key, "string", mActivity.mActivity.getPackageName());
-        return id == 0 ? null : mActivity.mActivity.getResources().getString(id);
+        // ZeroTermux modify {@
+        //int id = mActivity.getResources().getIdentifier("lorie_notification_" + key, "string", mActivity.getPackageName());
+        int id = mActivity.getResources().getIdentifier("lorie_notification_" + key, "string", mActivity.mActivity.getPackageName());
+        // @}
+        return id == 0 ? null : mActivity.getResources().getString(id);
     }
 
     public NotificationCompat.Builder setupNotification(Prefs prefs, NotificationCompat.Builder builder) {
@@ -786,8 +847,10 @@ public class TouchInputHandler {
 
         if (!MainActivity.isConnected()) {
             if (e.getKeyCode() == KEYCODE_BACK)
+                // ZeroTermux modify {@
+                //mActivity.finish();
                 mActivity.mActivity.finish();
-
+                // @}
             return false;
         }
 

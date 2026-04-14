@@ -177,8 +177,10 @@ public class MainActivity extends BaseLoader {
         mLorieView = findViewById(R.id.lorieView);
         frame = findViewById(R.id.frame);
         View lorieParent = (View) mLorieView.getParent();
-
+        // ZeroTermux modify {@
+        //mInputHandler = new TouchInputHandler(this, new InputEventSender(mLorieView));
         mInputHandler = new TouchInputHandler(this, new InputEventSender(mLorieView), mSettingsClick);
+        // @}
         mLorieKeyListener = (v, k, e) -> {
             InputDevice dev = e.getDevice();
             boolean result = mInputHandler.sendKeyEvent(e);

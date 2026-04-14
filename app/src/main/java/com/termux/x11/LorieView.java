@@ -7,7 +7,6 @@ import android.content.ClipDescription;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.ContextWrapper;
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -347,9 +346,8 @@ public class LorieView extends SurfaceView implements InputStub {
     private Callback mCallback;
     private final Point p = new Point();
     boolean commitedText = false;
-    private final MainActivity a = MainActivity.getInstance();
     private final InputConnection mConnection = new InputConnectionWrapper(new BaseInputConnection(this, false) {
-
+        private final MainActivity a = MainActivity.getInstance();
         private CharSequence currentComposingText = null;
 
         // We can not inspect X windows and get currently edited text
@@ -481,8 +479,8 @@ public class LorieView extends SurfaceView implements InputStub {
 
             currentComposingText = reuse ? newText : null;
 
-            if (MainActivity.getInstance().useTermuxEKBarBehaviour && MainActivity.getInstance().mExtraKeys != null)
-                MainActivity.getInstance().mExtraKeys.unsetSpecialKeys();
+            if (a.useTermuxEKBarBehaviour && a.mExtraKeys != null)
+                a.mExtraKeys.unsetSpecialKeys();
             commitedText = true;
             return true;
         }
@@ -612,7 +610,10 @@ public class LorieView extends SurfaceView implements InputStub {
         });
 
         Rect r = getHolder().getSurfaceFrame();
+        // ZeroTermux modify {@
+        // MainActivity.getInstance().runOnUiThread(() -> mSurfaceCallback.surfaceChanged(getHolder(), PixelFormat.BGRA_8888, r.width(), r.height()));
         MainActivity.getInstance().mActivity.runOnUiThread(() -> mSurfaceCallback.surfaceChanged(getHolder(), PixelFormat.BGRA_8888, r.width(), r.height()));
+        // @}
     }
 
     void getDimensionsFromSettings() {
@@ -708,7 +709,6 @@ public class LorieView extends SurfaceView implements InputStub {
 
     @Override
     public boolean dispatchKeyEventPreIme(KeyEvent event) {
-        Log.i("TAG", "handleKey dispatchKeyEventPreIme");
         if (imeBuggyKeys.contains(event.getKeyCode())) {
             // IME does not handle/send events for some keys correctly correctly.
             // So we should send key release manually in the case if IME will not send it...
@@ -717,9 +717,9 @@ public class LorieView extends SurfaceView implements InputStub {
             if (action == KeyEvent.ACTION_UP)
                 keyReleaseHandler.sendEmptyMessageDelayed(event.getKeyCode(), 50);
         }
-        Log.i("TAG", "handleKey hardwareKbdScancodesWorkaround: " + hardwareKbdScancodesWorkaround);
-        /*if (hardwareKbdScancodesWorkaround)
-            return false;*/
+
+        if (hardwareKbdScancodesWorkaround)
+            return false;
 
         return MainActivity.getInstance().handleKey(event);
     }

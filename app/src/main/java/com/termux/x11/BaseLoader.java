@@ -6,7 +6,7 @@ import android.view.View;
 import android.widget.FrameLayout;
 
 import androidx.annotation.IdRes;
-
+// ZeroTermux add File
 public class BaseLoader extends FrameLayout {
     private View mView;
     public Activity mActivity;
