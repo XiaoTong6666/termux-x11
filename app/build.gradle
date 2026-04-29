@@ -11,7 +11,9 @@ android {
         // ZeroTermux aar delete {@
         // applicationId "com.termux.x11"
         // @}
+        // ZeroTermux aar modify {@
         minSdkVersion 23
+        // @}
         targetSdkVersion 34
         versionCode 15
         def commit= 'git rev-parse --verify --short HEAD'.execute().text.trim()
@@ -74,7 +76,9 @@ android {
 dependencies {
     //noinspection DifferentStdlibGradleVersion
 
+    // ZeroTermux modify {@
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0"
+    // @}
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0'
     implementation 'androidx.preference:preference:1.2.1'
     compileOnly project(':shell-loader:stub')

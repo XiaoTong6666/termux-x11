@@ -36,11 +36,13 @@ public class FullscreenWorkaround {
         )
             return;
 
+        // ZeroTermux modify {@
         MainActivity mainActivity = MainActivity.getInstance();
         if (mainActivity == null || mainActivity.getFrame() == null)
             return;
 
         FrameLayout content = mainActivity.getFrame();
+        // @}
         FrameLayout.LayoutParams frameLayoutParams = (FrameLayout.LayoutParams) content.getLayoutParams();
 
         int usableHeightNow = computeUsableHeight(content);

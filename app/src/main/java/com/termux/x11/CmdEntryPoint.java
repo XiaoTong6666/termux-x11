@@ -1,6 +1,8 @@
 package com.termux.x11;
 
+// ZeroTermux add {@
 import static android.os.Build.VERSION.SDK_INT;
+// @}
 import static android.system.Os.getuid;
 import static android.system.Os.getenv;
 
@@ -26,7 +28,9 @@ import androidx.annotation.Keep;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+// ZeroTermux add {@
 import java.lang.reflect.Method;
+// @}
 import java.net.URL;
 
 @Keep @SuppressLint({"StaticFieldLeak", "UnsafeDynamicallyLoadedCode"})
@@ -75,10 +79,10 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
     @SuppressLint({"WrongConstant", "PrivateApi"})
     private Intent createIntent() {
         String targetPackage = getenv("TERMUX_X11_OVERRIDE_PACKAGE");
-		// ZeroTermux del {@
+		// ZeroTermux modify {@
 		if (targetPackage == null)
-		// @}
             targetPackage = "com.termux";
+		// @}
         // We should not care about multiple instances, it should be called only by `Termux:X11` app
         // which is single instance...
 
@@ -88,8 +92,8 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
         Intent intent = new Intent(ACTION_START);
         intent.putExtra(null, bundle);
         intent.setPackage(targetPackage);
-		intent.setClassName(targetPackage, CmdEntryPointStartReceiver.class.getName());
 		// ZeroTermux add {@
+		intent.setClassName(targetPackage, CmdEntryPointStartReceiver.class.getName());
         Log.d("SurfaceChangedListener", " send bundle :" + bundle);
 		// @}
         if (getuid() == 0 || getuid() == 2000)
@@ -111,6 +115,7 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
             else
                 Log.e("Broadcast", "Falling back to manual broadcasting, failed to broadcast intent through Context:", e);
 
+			// ZeroTermux modify {@
             String packageName;
             try {
                 android.content.pm.IPackageManager packageManager = android.app.ActivityThread.getPackageManager();
@@ -191,9 +196,11 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
             } catch (Exception ex) {
                 Log.e("Broadcast", "Manual broadcast failed, will retry later", ex);
             }
+			// @}
         }
     }
 
+	// ZeroTermux add {@
     private static Object[] createGetIntentSenderArgs(Class<?>[] parameterTypes, String packageName, Intent intent) {
         Object[] args = new Object[parameterTypes.length];
         int intIndex = 0;
@@ -227,6 +234,7 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
 
         return intIndex >= 4 ? args : null;
     }
+	// @}
 
     // In some cases Android Activity part can not connect opened port.
     // In this case opened port works like a lock file.

@@ -1,7 +1,9 @@
 package com.termux.x11;
 
 import static android.Manifest.permission.WRITE_SECURE_SETTINGS;
+// ZeroTermux add {@
 import static android.content.Context.RECEIVER_EXPORTED;
+// @}
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.Build.VERSION.SDK_INT;
 import static android.view.KeyEvent.*;
@@ -11,7 +13,9 @@ import static com.termux.x11.LoriePreferences.ACTION_PREFERENCES_CHANGED;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+// ZeroTermux add {@
 import android.app.Activity;
+// @}
 import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -56,7 +60,9 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
+// ZeroTermux add {@
 import androidx.annotation.Keep;
+// @}
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
@@ -76,7 +82,9 @@ import java.util.Map;
 
 @SuppressLint("ApplySharedPref")
 @SuppressWarnings({"deprecation", "unused"})
+// ZeroTermux modify {@
 public class MainActivity extends BaseLoader {
+// @}
     public static final String ACTION_STOP = "com.termux.x11.ACTION_STOP";
     public static final String ACTION_CUSTOM = "com.termux.x11.ACTION_CUSTOM";
 
@@ -96,11 +104,13 @@ public class MainActivity extends BaseLoader {
     boolean useTermuxEKBarBehaviour = false;
     private boolean isInPictureInPictureMode = false;
 
+    // ZeroTermux add {@
     private LorieView mLorieView;
     private MainActivityOnKeyDown mMainActivityOnKeyDown;
     private SettingsClick mSettingsClick;
     private FrameLayout frame;
     private boolean isVisible = false;
+    // @}
 
     public static Prefs prefs = null;
 
@@ -115,13 +125,17 @@ public class MainActivity extends BaseLoader {
             if (ACTION_START.equals(intent.getAction())) {
                 try {
                     Log.v("LorieBroadcastReceiver", "Got new ACTION_START intent");
+                    // ZeroTermux add {@
                     Log.d("SurfaceChangedListener", " Got new ACTION_START intent");
+                    // @}
                     onReceiveConnection(intent);
                 } catch (Exception e) {
                     Log.e("MainActivity", "Something went wrong while we extracted connection details from binder.", e);
                 }
             } else if (ACTION_STOP.equals(intent.getAction())) {
+                // ZeroTermux modify {@
                 mActivity.finishAffinity();
+                // @}
             } else if (ACTION_PREFERENCES_CHANGED.equals(intent.getAction())) {
                 Log.d("MainActivity", "preference: " + intent.getStringExtra("key"));
                 if (!"additionalKbdVisible".equals(intent.getStringExtra("key")))
@@ -137,7 +151,9 @@ public class MainActivity extends BaseLoader {
         @Override
         public boolean onPreDraw() {
             if (LorieView.connected())
+                // ZeroTermux modify {@
                 handler.post(() -> mActivity.findViewById(android.R.id.content).getViewTreeObserver().removeOnPreDrawListener(mOnPredrawListener));
+                // @}
             return false;
         }
     };
@@ -145,10 +161,12 @@ public class MainActivity extends BaseLoader {
     @SuppressLint("StaticFieldLeak")
     private static MainActivity instance;
 
+    // ZeroTermux modify {@
     public MainActivity(Activity activity) {
         super(activity);
         instance = this;
     }
+    // @}
 
     public static Prefs getPrefs() {
         return prefs;
@@ -158,6 +176,7 @@ public class MainActivity extends BaseLoader {
         return instance;
     }
 
+    // ZeroTermux modify {@
     public void init() {
 
         prefs = new Prefs(mActivity);
@@ -178,6 +197,7 @@ public class MainActivity extends BaseLoader {
         mLorieView = findViewById(R.id.lorieView);
         frame = findViewById(R.id.frame);
         View lorieParent = (View) mLorieView.getParent();
+        // @}
         // ZeroTermux modify {@
         //mInputHandler = new TouchInputHandler(this, new InputEventSender(mLorieView));
         mInputHandler = new TouchInputHandler(this, new InputEventSender(mLorieView), mSettingsClick);
@@ -207,41 +227,59 @@ public class MainActivity extends BaseLoader {
         mLorieView.setOnKeyListener(mLorieKeyListener);
 
         mLorieView.setCallback((surfaceWidth, surfaceHeight, screenWidth, screenHeight) -> {
+            // ZeroTermux add {@
             Log.d("SurfaceChangedListener", "Surface setCallback.");
+            // @}
             String name;
+            // ZeroTermux modify {@
             int framerate = (int) ((mLorieView.getDisplay() != null) ? mLorieView.getDisplay().getRefreshRate() : 30);
+            // @}
 
             mInputHandler.handleHostSizeChanged(surfaceWidth, surfaceHeight);
             mInputHandler.handleClientSizeChanged(screenWidth, screenHeight);
             if (mLorieView.getDisplay() == null || mLorieView.getDisplay().getDisplayId() == Display.DEFAULT_DISPLAY)
                 name = "builtin";
+            // ZeroTermux modify {@
             else if (SamsungDexUtils.checkDeXEnabled(mActivity))
+            // @}
                 name = "dex";
             else
                 name = "external";
             LorieView.sendWindowChange(screenWidth, screenHeight, framerate, name);
         });
+        // ZeroTermux add {@
         Log.d("SurfaceChangedListener", " start registerReceiver....");
         Log.d("SurfaceChangedListener", " start SDK_INT :" + SDK_INT);
         Log.d("SurfaceChangedListener", " start TIRAMISU :" + VERSION_CODES.TIRAMISU);
+        // @}
+        // ZeroTermux modify {@
         IntentFilter runtimeFilter = new IntentFilter();
         runtimeFilter.addAction(ACTION_PREFERENCES_CHANGED);
         runtimeFilter.addAction(ACTION_STOP);
         runtimeFilter.addAction(ACTION_CUSTOM);
         mActivity.registerReceiver(receiver, runtimeFilter, SDK_INT >= VERSION_CODES.TIRAMISU ? RECEIVER_EXPORTED : 0);
+        // @}
         Log.d("SurfaceChangedListener", " start registerReceiver OK...");
 
 
+        // ZeroTermux modify {@
         inputMethodManager = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+        // @}
 
         // Taken from Stackoverflow answer https://stackoverflow.com/questions/7417123/android-how-to-adjust-layout-in-full-screen-mode-when-softkeyboard-is-visible/7509285#
+        // ZeroTermux modify {@
         FullscreenWorkaround.assistActivity(mActivity);
+        // @}
+        // ZeroTermux delete {@
         //mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
         //mNotification = buildNotification();
         // mNotificationManager.notify(mNotificationId, mNotification);
+        // @}
 
         if (tryConnect()) {
+            // ZeroTermux modify {@
             final View content = mActivity.findViewById(android.R.id.content);
+            // @}
             content.getViewTreeObserver().addOnPreDrawListener(mOnPredrawListener);
             handler.postDelayed(() -> content.getViewTreeObserver().removeOnPreDrawListener(mOnPredrawListener), 500);
         }
@@ -253,19 +291,27 @@ public class MainActivity extends BaseLoader {
         initMouseAuxButtons();
 
         if (SDK_INT >= VERSION_CODES.TIRAMISU
+                // ZeroTermux modify {@
                 && mActivity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PERMISSION_GRANTED
                 && !mActivity.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
             mActivity.requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 0);
+                // @}
         }
 
+        // ZeroTermux add {@
         CmdEntryPointStartReceiver.consumePendingConnection(this);
+        // @}
+        // ZeroTermux modify {@
         onReceiveConnection(mActivity.getIntent());
         mActivity.findViewById(android.R.id.content).addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> makeSureHelpersAreVisibleAndInScreenBounds());
+        // @}
     }
 
+    // ZeroTermux modify {@
     public void onDestroy(Activity activity) {
         activity.unregisterReceiver(receiver);
     }
+    // @}
 
     //Register the needed events to handle stylus as left, middle and right click
     @SuppressLint("ClickableViewAccessibility")
@@ -409,12 +455,14 @@ public class MainActivity extends BaseLoader {
     }
 
     void setSize(View v, int width, int height) {
+        // ZeroTermux modify {@
         ViewGroup.LayoutParams p = v.getLayoutParams();
         p.width = (int) (width * mActivity.getResources().getDisplayMetrics().density);
         p.height = (int) (height * mActivity.getResources().getDisplayMetrics().density);
         v.setLayoutParams(p);
         v.setMinimumWidth((int) (width * mActivity.getResources().getDisplayMetrics().density));
         v.setMinimumHeight((int) (height * mActivity.getResources().getDisplayMetrics().density));
+        // @}
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -468,7 +516,9 @@ public class MainActivity extends BaseLoader {
         }));
 
         pos.setOnTouchListener(new View.OnTouchListener() {
+            // ZeroTermux modify {@
             final int touchSlop = (int) Math.pow(ViewConfiguration.get(mActivity).getScaledTouchSlop(), 2);
+            // @}
             final int tapTimeout = ViewConfiguration.getTapTimeout();
             final float[] startOffset = new float[2];
             final int[] startPosition = new int[2];
@@ -518,19 +568,27 @@ public class MainActivity extends BaseLoader {
     void onReceiveConnection(Intent intent) {
         Bundle bundle = intent == null ? null : intent.getBundleExtra(null);
         IBinder ibinder = bundle == null ? null : bundle.getBinder(null);
+        // ZeroTermux add {@
         Log.d("SurfaceChangedListener", " bundle: " + bundle);
         Log.d("SurfaceChangedListener", " ibinder: " + ibinder);
+        // @}
         if (ibinder == null)
             return;
 
         service = ICmdEntryInterface.Stub.asInterface(ibinder);
+        // ZeroTermux add {@
         Log.d("SurfaceChangedListener", " service: " + service);
+        // @}
         try {
             service.asBinder().linkToDeath(() -> {
                 service = null;
+                // ZeroTermux add {@
                 Log.d("SurfaceChangedListener", " Disconnected.");
+                // @}
                 Log.v("Lorie", "Disconnected");
+                // ZeroTermux modify {@
                 mActivity.runOnUiThread(() -> { LorieView.connect(-1); clientConnectedStateChanged();} );
+                // @}
             }, 0);
         } catch (RemoteException ignored) {}
 
@@ -543,6 +601,7 @@ public class MainActivity extends BaseLoader {
 
                 tryConnect();
 
+                // ZeroTermux modify {@
                 Intent activityIntent = mActivity.getIntent();
                 if (intent != activityIntent) {
                     if (activityIntent != null)
@@ -550,6 +609,7 @@ public class MainActivity extends BaseLoader {
                     else
                         mActivity.setIntent(new Intent(CmdEntryPoint.ACTION_START).putExtra(null, bundle));
                 }
+                // @}
             }
         } catch (Exception e) {
             Log.e("MainActivity", "Something went wrong while we were establishing connection", e);
@@ -594,6 +654,7 @@ public class MainActivity extends BaseLoader {
     }
 
     @SuppressLint("UnsafeIntentLaunch")
+    // ZeroTermux modify {@
     void onPreferencesChangedCallback() {
         prefs.recheckStoringSecondaryDisplayPreferences();
 
@@ -646,23 +707,33 @@ public class MainActivity extends BaseLoader {
             if (notification.getId() == mNotificationId)
                 mNotificationManager.cancel(mNotificationId);*/
     }
+    // @}
 
+    // ZeroTermux modify {@
     public LorieView getLorieView() {
         return mLorieView;
     }
+    // @}
+    // ZeroTermux add {@
     public FrameLayout getFrame() {
         return frame;
     }
+    // @}
 
+    // ZeroTermux modify {@
     public ViewPager getTerminalToolbarViewPager() {
         return findViewById(R.id.terminal_toolbar_view_pager_x11);
     }
+    // @}
 
+    // ZeroTermux add {@
     public void setTerminalToolbarViewVisible(boolean visible) {
         this.isVisible = visible;
         setTerminalToolbarView();
     }
+    // @}
 
+    // ZeroTermux modify {@
     private void setTerminalToolbarView() {
         final ViewPager pager = getTerminalToolbarViewPager();
         ViewGroup parent = (ViewGroup) pager.getParent();
@@ -715,8 +786,10 @@ public class MainActivity extends BaseLoader {
         Log.i("TAG", "handleKey e111: " + e.getKeyCode());
         return mLorieKeyListener.onKey(getLorieView(), e.getKeyCode(), e);
     }
+    // @}
 
     @SuppressLint("ObsoleteSdkInt")
+// ZeroTermux delete {@
 /*    Notification buildNotification() {
         NotificationCompat.Builder builder =  new NotificationCompat.Builder(mActivity, getNotificationChannel(mNotificationManager))
                 .setContentTitle("Termux:X11")
@@ -729,7 +802,9 @@ public class MainActivity extends BaseLoader {
                 .setColor(0xFF607D8B);
         return mInputHandler.setupNotification(prefs, builder).build();
     }*/
+// @}
 
+    // ZeroTermux modify {@
     private String getNotificationChannel(NotificationManager notificationManager){
         String channelId = mActivity.getResources().getString(R.string.app_name);
         String channelName = mActivity.getResources().getString(R.string.app_name);
@@ -829,6 +904,7 @@ public class MainActivity extends BaseLoader {
     //
     public void onBackPressed() {
     }
+    // @}
 
     public static boolean hasPipPermission(@NonNull Context context) {
         AppOpsManager appOpsManager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
@@ -840,6 +916,7 @@ public class MainActivity extends BaseLoader {
             return appOpsManager.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.getPackageName()) == AppOpsManager.MODE_ALLOWED;
     }
 
+    // ZeroTermux modify {@
     //
     public void onUserLeaveHint() {
         if (prefs.PIP.get() && hasPipPermission(mActivity)) {
@@ -891,6 +968,7 @@ public class MainActivity extends BaseLoader {
             onWindowFocusChanged(mActivity.hasWindowFocus());
         });
     }
+    // @}
 
     public static boolean isConnected() {
         if (getInstance() == null)
@@ -915,7 +993,9 @@ public class MainActivity extends BaseLoader {
 
     public boolean shouldInterceptKeys() {
         View textInput = findViewById(R.id.terminal_toolbar_text_input);
+        // ZeroTermux modify {@
         if (mInputHandler == null || !mActivity.hasWindowFocus() || (textInput != null && textInput.isFocused()))
+        // @}
             return false;
 
         return mInputHandler.shouldInterceptKeys();
@@ -927,10 +1007,13 @@ public class MainActivity extends BaseLoader {
         if (textInput != null)
             textInput.setShowSoftInputOnFocus(!connected || showIMEWhileExternalConnected);
         if (connected && !showIMEWhileExternalConnected)
+            // ZeroTermux modify {@
             inputMethodManager.hideSoftInputFromWindow(mActivity.getWindow().getDecorView().getRootView().getWindowToken(), 0);
+            // @}
         getLorieView().requestFocus();
     }
 
+    // ZeroTermux add {@
     public MainActivityOnKeyDown getMainActivityOnKeyDown() {
         return mMainActivityOnKeyDown;
     }
@@ -957,4 +1040,5 @@ public class MainActivity extends BaseLoader {
     public interface SettingsClick {
         void onClick();
     }
+    // @}
 }
