@@ -36,6 +36,7 @@ android {
     sourceSets {
         main {
             jniLibs.srcDirs = ['src/main/jniLibs']
+            java.exclude 'com/termux/shared/termux/extrakeys/**'
         }
     }
    /* splits.abi {
@@ -73,7 +74,7 @@ android {
 dependencies {
     //noinspection DifferentStdlibGradleVersion
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.20"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0"
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0'
     implementation 'androidx.preference:preference:1.2.1'
     compileOnly project(':shell-loader:stub')

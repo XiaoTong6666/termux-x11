@@ -26,6 +26,7 @@ import androidx.annotation.Keep;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Method;
 import java.net.URL;
 
 @Keep @SuppressLint({"StaticFieldLeak", "UnsafeDynamicallyLoadedCode"})
@@ -75,7 +76,7 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
     private Intent createIntent() {
         String targetPackage = getenv("TERMUX_X11_OVERRIDE_PACKAGE");
 		// ZeroTermux del {@
-        //if (targetPackage == null)
+		if (targetPackage == null)
 		// @}
             targetPackage = "com.termux";
         // We should not care about multiple instances, it should be called only by `Termux:X11` app
@@ -87,6 +88,7 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
         Intent intent = new Intent(ACTION_START);
         intent.putExtra(null, bundle);
         intent.setPackage(targetPackage);
+		intent.setClassName(targetPackage, CmdEntryPointStartReceiver.class.getName());
 		// ZeroTermux add {@
         Log.d("SurfaceChangedListener", " send bundle :" + bundle);
 		// @}
@@ -111,40 +113,119 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
 
             String packageName;
             try {
-                packageName = android.app.ActivityThread.getPackageManager().getPackagesForUid(getuid())[0];
+                android.content.pm.IPackageManager packageManager = android.app.ActivityThread.getPackageManager();
+                if (packageManager != null) {
+                    String[] packages = packageManager.getPackagesForUid(getuid());
+                    if (packages != null && packages.length > 0 && packages[0] != null)
+                        packageName = packages[0];
+                    else
+                        packageName = intent.getPackage();
+                } else {
+                    packageName = intent.getPackage();
+                }
+                if (packageName == null)
+                    packageName = "com.termux";
             } catch (RemoteException ex) {
-                throw new RuntimeException(ex);
+                Log.e("Broadcast", "Failed to resolve package for manual broadcast, using target package", ex);
+                packageName = intent.getPackage() != null ? intent.getPackage() : "com.termux";
             }
-            IActivityManager am;
+            Object am;
             try {
                 //noinspection JavaReflectionMemberAccess
-                am = (IActivityManager) android.app.ActivityManager.class
+                am = android.app.ActivityManager.class
                         .getMethod("getService")
                         .invoke(null);
             } catch (Exception e2) {
                 try {
-                    am = (IActivityManager) Class.forName("android.app.ActivityManagerNative")
+                    am = Class.forName("android.app.ActivityManagerNative")
                             .getMethod("getDefault")
                             .invoke(null);
                 } catch (Exception e3) {
-                    throw new RuntimeException(e3);
+                    Log.e("Broadcast", "Failed to resolve activity manager for manual broadcast", e3);
+                    return;
                 }
             }
 
-            assert am != null;
-            IIntentSender sender = am.getIntentSender(1, packageName, null, null, 0, new Intent[] { intent },
-                    null, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT, null, 0);
+            if (am == null) {
+                Log.w("Broadcast", "Activity manager is null, will retry broadcast later");
+                return;
+            }
+            Object sender;
+            try {
+                Class<?> activityManagerInterface = Class.forName("android.app.IActivityManager");
+                sender = null;
+                for (Method method : activityManagerInterface.getMethods()) {
+                    if (!"getIntentSenderWithFeature".equals(method.getName()) && !"getIntentSender".equals(method.getName()))
+                        continue;
+
+                    Object[] args = createGetIntentSenderArgs(method.getParameterTypes(), packageName, intent);
+                    if (args == null)
+                        continue;
+
+                    sender = method.invoke(am, args);
+                    if (sender != null)
+                        break;
+                }
+            } catch (Exception ex) {
+                Log.e("Broadcast", "Failed to create intent sender for manual broadcast", ex);
+                return;
+            }
+            if (sender == null) {
+                Log.w("Broadcast", "Intent sender is null, will retry broadcast later");
+                return;
+            }
             try {
                 //noinspection JavaReflectionMemberAccess
-                IIntentSender.class
-                        .getMethod("send", int.class, Intent.class, String.class, IBinder.class, IIntentReceiver.class, String.class, Bundle.class)
-                        .invoke(sender, 0, intent, null, null, new IIntentReceiver.Stub() {
-                            @Override public void performReceive(Intent i, int r, String d, Bundle e, boolean o, boolean s, int a) {}
-                        }, null, null);
+                Object finishedReceiver = new IIntentReceiver.Stub() {
+                    @Override public void performReceive(Intent i, int r, String d, Bundle e, boolean o, boolean s, int a) {}
+                };
+                try {
+                    IIntentSender.class
+                            .getMethod("send", int.class, Intent.class, String.class, IBinder.class, IIntentReceiver.class, String.class, Bundle.class)
+                            .invoke(sender, 0, intent, null, null, finishedReceiver, null, null);
+                } catch (IllegalArgumentException ex) {
+                    sender.getClass()
+                            .getMethod("send", int.class, Intent.class, String.class, IBinder.class, IIntentReceiver.class, String.class, Bundle.class)
+                            .invoke(sender, 0, intent, null, null, finishedReceiver, null, null);
+                }
             } catch (Exception ex) {
-                throw new RuntimeException(ex);
+                Log.e("Broadcast", "Manual broadcast failed, will retry later", ex);
             }
         }
+    }
+
+    private static Object[] createGetIntentSenderArgs(Class<?>[] parameterTypes, String packageName, Intent intent) {
+        Object[] args = new Object[parameterTypes.length];
+        int intIndex = 0;
+        int stringIndex = 0;
+
+        for (int i = 0; i < parameterTypes.length; i++) {
+            Class<?> type = parameterTypes[i];
+            if (type == int.class) {
+                if (intIndex == 0)
+                    args[i] = 1;
+                else if (intIndex == 2)
+                    args[i] = PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT;
+                else
+                    args[i] = 0;
+                intIndex++;
+            } else if (type == String.class) {
+                args[i] = stringIndex == 0 ? packageName : null;
+                stringIndex++;
+            } else if (type == IBinder.class) {
+                args[i] = null;
+            } else if (type == Intent[].class) {
+                args[i] = new Intent[] { intent };
+            } else if (type == String[].class) {
+                args[i] = null;
+            } else if (type == Bundle.class) {
+                args[i] = null;
+            } else {
+                return null;
+            }
+        }
+
+        return intIndex >= 4 ? args : null;
     }
 
     // In some cases Android Activity part can not connect opened port.

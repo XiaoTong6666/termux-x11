@@ -56,6 +56,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
+import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
@@ -223,12 +224,12 @@ public class MainActivity extends BaseLoader {
         Log.d("SurfaceChangedListener", " start registerReceiver....");
         Log.d("SurfaceChangedListener", " start SDK_INT :" + SDK_INT);
         Log.d("SurfaceChangedListener", " start TIRAMISU :" + VERSION_CODES.TIRAMISU);
-        mActivity.registerReceiver(receiver, new IntentFilter(ACTION_START) {{
-            Log.d("SurfaceChangedListener", " start registerReceiver OK...");
-            addAction(ACTION_PREFERENCES_CHANGED);
-            addAction(ACTION_STOP);
-            addAction(ACTION_CUSTOM);
-        }}, SDK_INT >= VERSION_CODES.TIRAMISU ? RECEIVER_EXPORTED : 0);
+        IntentFilter runtimeFilter = new IntentFilter();
+        runtimeFilter.addAction(ACTION_PREFERENCES_CHANGED);
+        runtimeFilter.addAction(ACTION_STOP);
+        runtimeFilter.addAction(ACTION_CUSTOM);
+        mActivity.registerReceiver(receiver, runtimeFilter, SDK_INT >= VERSION_CODES.TIRAMISU ? RECEIVER_EXPORTED : 0);
+        Log.d("SurfaceChangedListener", " start registerReceiver OK...");
 
 
         inputMethodManager = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
@@ -257,6 +258,7 @@ public class MainActivity extends BaseLoader {
             mActivity.requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 0);
         }
 
+        CmdEntryPointStartReceiver.consumePendingConnection(this);
         onReceiveConnection(mActivity.getIntent());
         mActivity.findViewById(android.R.id.content).addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> makeSureHelpersAreVisibleAndInScreenBounds());
     }
@@ -541,8 +543,13 @@ public class MainActivity extends BaseLoader {
 
                 tryConnect();
 
-                if (intent != mActivity.getIntent())
-                    mActivity.getIntent().putExtra(null, bundle);
+                Intent activityIntent = mActivity.getIntent();
+                if (intent != activityIntent) {
+                    if (activityIntent != null)
+                        activityIntent.putExtra(null, bundle);
+                    else
+                        mActivity.setIntent(new Intent(CmdEntryPoint.ACTION_START).putExtra(null, bundle));
+                }
             }
         } catch (Exception e) {
             Log.e("MainActivity", "Something went wrong while we were establishing connection", e);
@@ -941,10 +948,12 @@ public class MainActivity extends BaseLoader {
         this.mSettingsClick = mSettingsClick;
     }
 
+    @Keep
     public interface MainActivityOnKeyDown {
         boolean onKeyDown(int keyCode, KeyEvent event);
     }
 
+    @Keep
     public interface SettingsClick {
         void onClick();
     }
