@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 
 android {
+    def abiFiltersEnv = System.getenv("TERMUX_X11_ABI_FILTERS")
     namespace 'com.termux.x11'
     //noinspection GrDeprecatedAPIUsage
     compileSdkVersion 34
@@ -26,7 +27,7 @@ android {
         enable true
         reset()
 
-        include "x86", "x86_64", "armeabi-v7a", "arm64-v8a"
+        include(*(abiFiltersEnv != null && !abiFiltersEnv.trim().isEmpty() ? abiFiltersEnv.split(',')*.trim() : ["x86", "x86_64", "armeabi-v7a", "arm64-v8a"]))
         universalApk true
     }
 

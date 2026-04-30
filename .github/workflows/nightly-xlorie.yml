@@ -1,0 +1,134 @@
+name: nightly-xlorie
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+      - zt
+    paths-ignore:
+      - '**.md'
+      - 'img/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-xlorie-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-xlorie:
+    name: build-${{ matrix.abi }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        abi:
+          - arm64-v8a
+          - armeabi-v7a
+          - x86
+          - x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ matrix.abi }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ matrix.abi }}-
+            ${{ runner.os }}-gradle-
+
+      - name: Build libXlorie for ABI
+        env:
+          TERMUX_X11_ABI_FILTERS: ${{ matrix.abi }}
+        run: ./gradlew :app:assembleDebug
+
+      - name: Stage libXlorie artifact
+        run: |
+          mkdir -p dist
+          cp "app/build/intermediates/stripped_native_libs/debug/stripDebugDebugSymbols/out/lib/${{ matrix.abi }}/libXlorie.so" "dist/libXlorie-${{ matrix.abi }}.so"
+
+      - name: Upload libXlorie artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libXlorie-${{ matrix.abi }}
+          path: dist/libXlorie-${{ matrix.abi }}.so
+          if-no-files-found: error
+
+  publish-nightly:
+    name: publish-nightly
+    runs-on: ubuntu-latest
+    needs: build-xlorie
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Assemble release payload
+        run: |
+          mkdir -p dist
+          cp release-artifacts/libXlorie-arm64-v8a/libXlorie-arm64-v8a.so dist/
+          cp release-artifacts/libXlorie-armeabi-v7a/libXlorie-armeabi-v7a.so dist/
+          cp release-artifacts/libXlorie-x86/libXlorie-x86.so dist/
+          cp release-artifacts/libXlorie-x86_64/libXlorie-x86_64.so dist/
+          (
+            cd dist
+            sha256sum \
+              libXlorie-arm64-v8a.so \
+              libXlorie-armeabi-v7a.so \
+              libXlorie-x86.so \
+              libXlorie-x86_64.so > SHA256SUMS
+          )
+
+      - name: Compute release tag
+        id: release_tag
+        run: |
+          echo "tag=nightly-xlorie-${GITHUB_REF_NAME//\//-}" >> "$GITHUB_OUTPUT"
+
+      - name: Move nightly tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${{ steps.release_tag.outputs.tag }}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${{ steps.release_tag.outputs.tag }}" --force
+
+      - name: Recreate nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${{ steps.release_tag.outputs.tag }}" >/dev/null 2>&1 && gh release delete "${{ steps.release_tag.outputs.tag }}" --yes || true
+          gh release create "${{ steps.release_tag.outputs.tag }}" \
+            dist/libXlorie-arm64-v8a.so \
+            dist/libXlorie-armeabi-v7a.so \
+            dist/libXlorie-x86.so \
+            dist/libXlorie-x86_64.so \
+            dist/SHA256SUMS \
+            --title "${{ steps.release_tag.outputs.tag }}" \
+            --notes "Automated nightly libXlorie.so build for branch ${{ github.ref_name }} at ${GITHUB_SHA}"
