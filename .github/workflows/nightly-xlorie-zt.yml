@@ -1,0 +1,110 @@
+name: nightly-termux-x11-aar-zt
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - zt
+    paths-ignore:
+      - '**.md'
+      - 'img/**'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-termux-x11-aar-zt
+  cancel-in-progress: true
+
+jobs:
+  build-aar:
+    name: build-aar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-termux-x11-aar-zt-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-termux-x11-aar-zt-
+            ${{ runner.os }}-gradle-
+
+      - name: Build zt AAR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: ./gradlew :app:assembleDebug :shell-loader:assembleDebug
+
+      - name: Stage release artifacts
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/aar/app-debug.aar dist/termux-x11-zt-nightly.aar
+          cp shell-loader/build/outputs/apk/debug/shell-loader-debug-unsigned.apk dist/aisle_zt_loader.apk
+          (
+            cd dist
+            sha256sum termux-x11-zt-nightly.aar aisle_zt_loader.apk > SHA256SUMS
+          )
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-termux-x11-aar-zt-payload
+          path: |
+            dist/termux-x11-zt-nightly.aar
+            dist/aisle_zt_loader.apk
+            dist/SHA256SUMS
+          if-no-files-found: error
+
+  publish-nightly:
+    name: publish-nightly
+    runs-on: ubuntu-latest
+    needs: build-aar
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: nightly-termux-x11-aar-zt-payload
+          path: dist
+
+      - name: Move nightly tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f nightly-termux-x11-aar-zt "${GITHUB_SHA}"
+          git push origin refs/tags/nightly-termux-x11-aar-zt --force
+
+      - name: Recreate nightly release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view nightly-termux-x11-aar-zt >/dev/null 2>&1 && gh release delete nightly-termux-x11-aar-zt --yes || true
+          gh release create nightly-termux-x11-aar-zt \
+            dist/termux-x11-zt-nightly.aar \
+            dist/aisle_zt_loader.apk \
+            dist/SHA256SUMS \
+            --title "nightly-termux-x11-aar-zt" \
+            --notes "Automated nightly zt AAR and loader build for ${GITHUB_SHA}. Builds against libXlorie from nightly-xlorie-master."

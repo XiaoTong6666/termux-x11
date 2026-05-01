@@ -3,17 +3,16 @@
 apply plugin: 'com.android.library'
 // @}
 
+def embeddedXlorieAbis = ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"]
+def embeddedXlorieJniLibsDir = layout.buildDirectory.dir("generated/jnilibs/embedded-xlorie")
+def termuxXlorieOutputDir = rootProject.layout.buildDirectory.dir("prebuilt-xlorie").get()
+
 android {
     namespace 'com.termux.x11'
     //noinspection GrDeprecatedAPIUsage
     compileSdkVersion 34
     defaultConfig {
-        // ZeroTermux aar delete {@
-        // applicationId "com.termux.x11"
-        // @}
-        // ZeroTermux aar modify {@
         minSdkVersion 23
-        // @}
         targetSdkVersion 34
         versionCode 15
         def commit= 'git rev-parse --verify --short HEAD'.execute().text.trim()
@@ -31,13 +30,12 @@ android {
     // ZeroTermux aar modify {@
     defaultConfig {
         ndk {
-            // 只保留 arm64-v8a
-            abiFilters 'arm64-v8a'
+            abiFilters 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a'
         }
     }
     sourceSets {
         main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
+            jniLibs.srcDirs = [embeddedXlorieJniLibsDir.get().asFile.absolutePath]
             java.exclude 'com/termux/shared/termux/extrakeys/**'
         }
     }
@@ -51,9 +49,6 @@ android {
     // @}
     compileOptions.sourceCompatibility JavaVersion.VERSION_1_9
     compileOptions.targetCompatibility JavaVersion.VERSION_1_9
-    // ZeroTermux aar delete {@
-    //externalNativeBuild.cmake.path "src/main/cpp/CMakeLists.txt"
-    // @}
     packagingOptions.jniLibs.useLegacyPackaging false
     buildFeatures.aidl true
     buildFeatures.buildConfig true
@@ -72,6 +67,41 @@ dependencies {
     implementation 'androidx.preference:preference:1.2.1'
     compileOnly project(':shell-loader:stub')
 }
+
+tasks.register("verifyEmbeddedXlorieJniLibs") {
+    group = "build"
+    description = "Verifies that prebuilt libXlorie.so binaries exist under build/prebuilt-xlorie."
+    dependsOn(rootProject.tasks.named("downloadNightlyXlorie"))
+    mustRunAfter(rootProject.tasks.named("downloadNightlyXlorie"))
+
+    def expectedXlorieBinaries = embeddedXlorieAbis.collect { abi -> termuxXlorieOutputDir.file("${abi}/libXlorie.so").asFile }
+    inputs.files(expectedXlorieBinaries)
+
+    doLast {
+        def missingBinaries = expectedXlorieBinaries.findAll { !it.isFile() }
+        if (missingBinaries.isEmpty()) return
+
+        def missingAbis = missingBinaries.collect { it.parentFile.name }
+        throw new GradleException("Missing prebuilt libXlorie.so binaries for ABIs ${missingAbis} under ${termuxXlorieOutputDir.asFile}. Run ./gradlew downloadNightlyXlorie first.")
+    }
+}
+
+tasks.register("prepareEmbeddedXlorieJniLibs", Sync) {
+    group = "build"
+    description = "Copies prebuilt libXlorie.so binaries into generated jniLibs per ABI."
+    dependsOn(tasks.named("verifyEmbeddedXlorieJniLibs"))
+    mustRunAfter(rootProject.tasks.named("downloadNightlyXlorie"))
+
+    from(termuxXlorieOutputDir) {
+        include("**/libXlorie.so")
+        eachFile {
+            path = path
+        }
+        includeEmptyDirs = false
+    }
+    into(embeddedXlorieJniLibsDir)
+}
+
 afterEvaluate {
     tasks.register("generatePrefs") {
         //noinspection UnnecessaryQualifiedReference
@@ -127,4 +157,5 @@ afterEvaluate {
     }
     android.sourceSets.main.java.srcDirs += 'build/generated/java'
     preBuild.dependsOn generatePrefs
+    preBuild.dependsOn prepareEmbeddedXlorieJniLibs
 }

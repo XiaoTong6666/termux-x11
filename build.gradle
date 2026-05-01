@@ -20,6 +20,113 @@ allprojects {
     }
 }
 
+ext.nightlyXlorieRepo = findProperty("nightlyXlorieRepo") ?: "XiaoTong6666/termux-x11"
+ext.nightlyXlorieTag = findProperty("nightlyXlorieTag") ?: "nightly-xlorie-master"
+ext.nightlyXlorieAssets = [
+    [abi: "arm64-v8a", assetName: "libXlorie-arm64-v8a.so"],
+    [abi: "armeabi-v7a", assetName: "libXlorie-armeabi-v7a.so"],
+    [abi: "x86", assetName: "libXlorie-x86.so"],
+    [abi: "x86_64", assetName: "libXlorie-x86_64.so"],
+]
+
+def httpGetText = { String url, String githubToken ->
+    def connection = new URL(url).openConnection()
+    connection.setRequestProperty("Accept", "application/vnd.github+json")
+    if (githubToken) connection.setRequestProperty("Authorization", "Bearer ${githubToken}")
+    connection.inputStream.withCloseable { it.getText("UTF-8") }
+}
+
+def downloadToFile = { String url, File destination, String githubToken ->
+    destination.parentFile.mkdirs()
+    def connection = new URL(url).openConnection()
+    connection.setRequestProperty("Accept", "application/octet-stream")
+    if (githubToken) connection.setRequestProperty("Authorization", "Bearer ${githubToken}")
+    connection.inputStream.withCloseable { input ->
+        destination.withOutputStream { output ->
+            output << input
+        }
+    }
+}
+
+def sha256Hex = { File file ->
+    def digest = java.security.MessageDigest.getInstance("SHA-256")
+    file.withInputStream { input ->
+        byte[] buffer = new byte[8192]
+        int bytesRead
+        while ((bytesRead = input.read(buffer)) != -1) {
+            digest.update(buffer, 0, bytesRead)
+        }
+    }
+    return digest.digest().collect { String.format("%02x", it) }.join()
+}
+
+tasks.register("downloadNightlyXlorie") {
+    group = "build"
+    description = "Downloads nightly libXlorie.so binaries for supported ABIs."
+
+    def xlorieOutputDir = layout.buildDirectory.dir("prebuilt-xlorie").get().asFile
+    def outputFiles = nightlyXlorieAssets.collect { asset -> new File(xlorieOutputDir, "${asset.abi}/libXlorie.so") }
+    def checksumOutput = new File(xlorieOutputDir, "SHA256SUMS")
+
+    outputs.files(outputFiles + [checksumOutput])
+    outputs.upToDateWhen { false }
+
+    doLast {
+        def githubToken = System.getenv("GITHUB_TOKEN")
+        def releaseApiUrl = "https://api.github.com/repos/${nightlyXlorieRepo}/releases/tags/${nightlyXlorieTag}"
+        def tempDir = layout.buildDirectory.dir("downloads/nightly-xlorie").get().asFile
+
+        tempDir.deleteDir()
+        tempDir.mkdirs()
+
+        def releaseJson = new groovy.json.JsonSlurper().parseText(httpGetText(releaseApiUrl, githubToken))
+        def releaseAssets = (releaseJson.assets ?: []).findAll { it instanceof Map }
+        def assetsByName = releaseAssets.collectEntries { [(it.name.toString()): it] }
+
+        def checksumAsset = assetsByName["SHA256SUMS"]
+        if (!checksumAsset) {
+            throw new GradleException("Nightly release ${nightlyXlorieRepo}@${nightlyXlorieTag} is missing SHA256SUMS.")
+        }
+
+        def checksumTemp = new File(tempDir, "SHA256SUMS")
+        downloadToFile(checksumAsset.browser_download_url.toString(), checksumTemp, githubToken)
+
+        def expectedChecksums = checksumTemp.readLines().findAll { it?.trim() }.collectEntries { line ->
+            def parts = line.trim().split(/\s+/, 2)
+            if (parts.length != 2) {
+                throw new GradleException("Malformed SHA256SUMS line: ${line}")
+            }
+            [(parts[1].replaceFirst(/^\*/, "")): parts[0].toLowerCase()]
+        }
+
+        nightlyXlorieAssets.each { asset ->
+            def releaseAsset = assetsByName[asset.assetName]
+            if (!releaseAsset) {
+                throw new GradleException("Nightly release ${nightlyXlorieRepo}@${nightlyXlorieTag} is missing ${asset.assetName}.")
+            }
+
+            def expectedSha = expectedChecksums[asset.assetName]
+            if (!expectedSha) {
+                throw new GradleException("SHA256SUMS does not contain ${asset.assetName}.")
+            }
+
+            def downloadedAsset = new File(tempDir, asset.assetName)
+            def outputFile = new File(xlorieOutputDir, "${asset.abi}/libXlorie.so")
+
+            downloadToFile(releaseAsset.browser_download_url.toString(), downloadedAsset, githubToken)
+            def actualSha = sha256Hex(downloadedAsset)
+            if (actualSha != expectedSha) {
+                throw new GradleException("SHA-256 mismatch for ${asset.assetName}: expected ${expectedSha}, got ${actualSha}")
+            }
+            outputFile.parentFile.mkdirs()
+            outputFile.bytes = downloadedAsset.bytes
+        }
+
+        checksumOutput.parentFile.mkdirs()
+        checksumOutput.bytes = checksumTemp.bytes
+    }
+}
+
 tasks.register('clean', Delete) {
     delete rootProject.buildDir
 }
