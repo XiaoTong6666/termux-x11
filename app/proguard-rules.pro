@@ -1,23 +1,33 @@
--keepattributes SourceFile,LineNumberTable
+# Add project specific ProGuard rules here.
+# You can control the set of applied configuration files using the
+# proguardFiles setting in build.gradle.
+#
+# For more details, see
+#   http://developer.android.com/guide/developing/tools/proguard.html
 
--dontobfuscate
+# If your project uses WebView with JS, uncomment the following
+# and specify the fully qualified class name to the JavaScript interface
+# class:
+#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
+#   public *;
+#}
 
-# Keep classes/members referenced from JNI (FindClass/GetMethodID/RegisterNatives) + main entrypoint
--keep class com.termux.x11.LorieView {
+# Uncomment this to preserve the line number information for
+# debugging stack traces.
+#-keepattributes SourceFile,LineNumberTable
+
+# If you keep the line number information, uncomment this to
+# hide the original source file name.
+#-renamesourcefileattribute SourceFile
+
+# 保留 CmdEntryPoint 及其依赖
+-keep class com.termux.x11.CmdEntryPoint { *; }
+-keep class com.termux.x11.Loader { *; }
+
+# 保留所有native方法
+-keepclasseswithmembernames class * {
     native <methods>;
-    void resetIme();
 }
 
--keep class com.termux.x11.MainActivity {
-    public static com.termux.x11.MainActivity getInstance();
-    void clientConnectedStateChanged();
-}
-
--keep class com.termux.x11.CmdEntryPoint {
-    public static void main(java.lang.String[]);
-}
-
-# Keep Preference subclasses' onSetInitialValue for reflective calls
--keepclassmembers class * extends android.preference.Preference {
-    void onSetInitialValue(boolean, java.lang.Object);
-}
+# 保留自定义异常类
+-keep public class * extends java.lang.Exception

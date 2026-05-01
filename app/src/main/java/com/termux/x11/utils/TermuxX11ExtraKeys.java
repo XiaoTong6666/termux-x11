@@ -1,6 +1,8 @@
 package com.termux.x11.utils;
-
-import static com.termux.shared.termux.extrakeys.ExtraKeysConstants.PRIMARY_KEY_CODES_FOR_STRINGS;
+// ZeroTermux modify {@
+//import static com.termux.shared.termux.x11.ExtraKeysConstants.PRIMARY_KEY_CODES_FOR_STRINGS;
+import static com.termux.shared.termux.x11.ExtraKeysConstants.PRIMARY_KEY_CODES_FOR_STRINGS;
+// @}
 import static com.termux.x11.MainActivity.toggleKeyboardVisibility;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -18,8 +20,10 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-
-import com.termux.shared.termux.extrakeys.*;
+// ZeroTermux modify {@
+//import com.termux.shared.termux.extrakeys.*;
+import com.termux.shared.termux.x11.*;
+// @}
 import com.termux.x11.LoriePreferences;
 import com.termux.x11.MainActivity;
 
@@ -38,15 +42,26 @@ public class TermuxX11ExtraKeys implements ExtraKeysView.IExtraKeysView {
     private boolean altDown;
     private boolean shiftDown;
     private boolean metaDown;
+    // ZeroTermux add {@
+    private MainActivity.SettingsClick mSettingsClick;
+    // @}
 
     /** Defines the key for extra keys */
     public static final String DEFAULT_IVALUE_EXTRA_KEYS = "[['ESC','/',{key: '-', popup: '|'},'HOME','UP','END','PGUP','PREFERENCES'], ['TAB','CTRL','ALT','LEFT','DOWN','RIGHT','PGDN','KEYBOARD']]"; // Double row
-
-    public TermuxX11ExtraKeys(@NonNull View.OnKeyListener eventlistener, MainActivity activity, ExtraKeysView extrakeysview) {
+    // ZeroTermux modify {@
+    //public TermuxX11ExtraKeys(@NonNull View.OnKeyListener eventlistener, MainActivity activity, ExtraKeysView extrakeysview) {
+    public TermuxX11ExtraKeys(@NonNull View.OnKeyListener eventlistener, MainActivity activity, ExtraKeysView extrakeysview, MainActivity.SettingsClick settingsClick) {
+        // @}
+        // ZeroTermux add {@
+        mSettingsClick = settingsClick;
+        // @}
         mEventListener = eventlistener;
         mActivity = activity;
         mExtraKeysView = extrakeysview;
-        mClipboardManager = (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
+        // ZeroTermux modify {@
+        // mClipboardManager = (ClipboardManager) mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
+        mClipboardManager = (ClipboardManager) mActivity.mActivity.getSystemService(Context.CLIPBOARD_SERVICE);
+        // @}
     }
 
     private final KeyCharacterMap mVirtualKeyboardKeyCharacterMap = KeyCharacterMap.load(KeyCharacterMap.VIRTUAL_KEYBOARD);
@@ -165,15 +180,24 @@ public class TermuxX11ExtraKeys implements ExtraKeysView.IExtraKeysView {
     @SuppressLint("RtlHardcoded")
     public void onLorieExtraKeyButtonClick(View view, String key, boolean ctrlDown, boolean altDown, boolean shiftDown, boolean metaDown, boolean fnDown) {
         if ("KEYBOARD".equals(key))
-            toggleKeyboardVisibility(mActivity);
+            // ZeroTermux modify {@
+            //toggleKeyboardVisibility(mActivity);
+            toggleKeyboardVisibility(mActivity.mActivity);
+            // @}
         else if ("DRAWER".equals(key) || "PREFERENCES".equals(key))
-            mActivity.startActivity(new Intent(mActivity, LoriePreferences.class) {{ setAction(ACTION_START_PREFERENCES_ACTIVITY); }});
+            mActivity.mActivity.startActivity(new Intent(mActivity.mActivity, LoriePreferences.class) {{ setAction(ACTION_START_PREFERENCES_ACTIVITY); }});
         else if ("EXIT".equals(key))
-            mActivity.finish();
+            // ZeroTermux modify {@
+            mActivity.mActivity.finish();
+            //mActivity.finish();
+            // @}
         else if ("PASTE".equals(key)) {
             ClipData clipData = mClipboardManager.getPrimaryClip();
             if (clipData != null) {
-                CharSequence pasted = clipData.getItemAt(0).coerceToText(mActivity);
+                // ZeroTermux modify {@
+                // CharSequence pasted = clipData.getItemAt(0).coerceToText(mActivity);
+                CharSequence pasted = clipData.getItemAt(0).coerceToText(mActivity.mActivity);
+                // @}
                 if (!TextUtils.isEmpty(pasted)) {
                     KeyEvent[] events = mVirtualKeyboardKeyCharacterMap.getEvents(pasted.toString().toCharArray());
                     if (events != null)
@@ -202,13 +226,19 @@ public class TermuxX11ExtraKeys implements ExtraKeysView.IExtraKeysView {
             String extrakeys = MainActivity.getPrefs().extra_keys_config.get();
             mExtraKeysInfo = new ExtraKeysInfo(extrakeys, "extra-keys-style", ExtraKeysConstants.CONTROL_CHARS_ALIASES);
         } catch (JSONException e) {
-            Toast.makeText(MainActivity.getInstance(), "Could not load and set the \"extra-keys\" property from the properties file: " + e, Toast.LENGTH_LONG).show();
+            // ZeroTermux modify {@
+            Toast.makeText(MainActivity.getInstance().mActivity, "Could not load and set the \"extra-keys\" property from the properties file: " + e, Toast.LENGTH_LONG).show();
+            //Toast.makeText(MainActivity.getInstance(), "Could not load and set the \"extra-keys\" property from the properties file: " + e, Toast.LENGTH_LONG).show();
+            // @}
             Log.e(LOG_TAG, "Could not load and set the \"extra-keys\" property from the properties file: ", e);
 
             try {
                 mExtraKeysInfo = new ExtraKeysInfo(TermuxX11ExtraKeys.DEFAULT_IVALUE_EXTRA_KEYS, "default", ExtraKeysConstants.CONTROL_CHARS_ALIASES);
             } catch (JSONException e2) {
-                Toast.makeText(MainActivity.getInstance(), "Can't create default extra keys", Toast.LENGTH_LONG).show();
+                // ZeroTermux modify {@
+                Toast.makeText(MainActivity.getInstance().mActivity, "Can't create default extra keys", Toast.LENGTH_LONG).show();
+                // Toast.makeText(MainActivity.getInstance(), "Can't create default extra keys", Toast.LENGTH_LONG).show();
+                // @}
                 Log.e(LOG_TAG, "Could create default extra keys: ", e);
                 mExtraKeysInfo = null;
             }

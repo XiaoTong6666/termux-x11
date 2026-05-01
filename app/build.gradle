@@ -1,13 +1,19 @@
-apply plugin: 'com.android.application'
+// ZeroTermux aar modify {@
+//apply plugin: 'com.android.application'
+apply plugin: 'com.android.library'
+// @}
 
 android {
-    def abiFiltersEnv = System.getenv("TERMUX_X11_ABI_FILTERS")
     namespace 'com.termux.x11'
     //noinspection GrDeprecatedAPIUsage
     compileSdkVersion 34
     defaultConfig {
-        applicationId "com.termux.x11"
-        minSdkVersion 26
+        // ZeroTermux aar delete {@
+        // applicationId "com.termux.x11"
+        // @}
+        // ZeroTermux aar modify {@
+        minSdkVersion 23
+        // @}
         targetSdkVersion 34
         versionCode 15
         def commit= 'git rev-parse --verify --short HEAD'.execute().text.trim()
@@ -22,33 +28,46 @@ android {
         storePassword 'xrj45yWGLbsO7W0v'
         keyPassword 'xrj45yWGLbsO7W0v'
     }
-
-    splits.abi {
+    // ZeroTermux aar modify {@
+    defaultConfig {
+        ndk {
+            // 只保留 arm64-v8a
+            abiFilters 'arm64-v8a'
+        }
+    }
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['src/main/jniLibs']
+            java.exclude 'com/termux/shared/termux/extrakeys/**'
+        }
+    }
+   /* splits.abi {
         enable true
         reset()
 
-        include(*(abiFiltersEnv != null && !abiFiltersEnv.trim().isEmpty() ? abiFiltersEnv.split(',')*.trim() : ["x86", "x86_64", "armeabi-v7a", "arm64-v8a"]))
+        include "x86", "x86_64", "armeabi-v7a", "arm64-v8a"
         universalApk true
-    }
-
+    }*/
+    // @}
     compileOptions.sourceCompatibility JavaVersion.VERSION_1_9
     compileOptions.targetCompatibility JavaVersion.VERSION_1_9
-    externalNativeBuild.cmake.path "src/main/cpp/CMakeLists.txt"
+    // ZeroTermux aar delete {@
+    //externalNativeBuild.cmake.path "src/main/cpp/CMakeLists.txt"
+    // @}
     packagingOptions.jniLibs.useLegacyPackaging false
     buildFeatures.aidl true
     buildFeatures.buildConfig true
     buildTypes.debug {
         signingConfig signingConfigs.debug
-        minifyEnabled true
-        shrinkResources true
-        proguardFiles 'proguard-rules.pro'
     }
 }
 
 dependencies {
     //noinspection DifferentStdlibGradleVersion
 
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.3.20"
+    // ZeroTermux modify {@
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0"
+    // @}
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0'
     implementation 'androidx.preference:preference:1.2.1'
     compileOnly project(':shell-loader:stub')

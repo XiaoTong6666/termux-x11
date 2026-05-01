@@ -36,7 +36,13 @@ public class FullscreenWorkaround {
         )
             return;
 
-        FrameLayout content = (FrameLayout)  ((FrameLayout) mActivity.findViewById(android.R.id.content)).getChildAt(0);
+        // ZeroTermux modify {@
+        MainActivity mainActivity = MainActivity.getInstance();
+        if (mainActivity == null || mainActivity.getFrame() == null)
+            return;
+
+        FrameLayout content = mainActivity.getFrame();
+        // @}
         FrameLayout.LayoutParams frameLayoutParams = (FrameLayout.LayoutParams) content.getLayoutParams();
 
         int usableHeightNow = computeUsableHeight(content);

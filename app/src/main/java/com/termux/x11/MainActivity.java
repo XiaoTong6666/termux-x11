@@ -1,6 +1,9 @@
 package com.termux.x11;
 
 import static android.Manifest.permission.WRITE_SECURE_SETTINGS;
+// ZeroTermux add {@
+import static android.content.Context.RECEIVER_EXPORTED;
+// @}
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.Build.VERSION.SDK_INT;
 import static android.view.KeyEvent.*;
@@ -10,6 +13,9 @@ import static com.termux.x11.LoriePreferences.ACTION_PREFERENCES_CHANGED;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+// ZeroTermux add {@
+import android.app.Activity;
+// @}
 import android.app.AppOpsManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -54,6 +60,9 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 
+// ZeroTermux add {@
+import androidx.annotation.Keep;
+// @}
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.NotificationCompat;
@@ -73,7 +82,9 @@ import java.util.Map;
 
 @SuppressLint("ApplySharedPref")
 @SuppressWarnings({"deprecation", "unused"})
-public class MainActivity extends AppCompatActivity {
+// ZeroTermux modify {@
+public class MainActivity extends BaseLoader {
+// @}
     public static final String ACTION_STOP = "com.termux.x11.ACTION_STOP";
     public static final String ACTION_CUSTOM = "com.termux.x11.ACTION_CUSTOM";
 
@@ -93,6 +104,14 @@ public class MainActivity extends AppCompatActivity {
     boolean useTermuxEKBarBehaviour = false;
     private boolean isInPictureInPictureMode = false;
 
+    // ZeroTermux add {@
+    private LorieView mLorieView;
+    private MainActivityOnKeyDown mMainActivityOnKeyDown;
+    private SettingsClick mSettingsClick;
+    private FrameLayout frame;
+    private boolean isVisible = false;
+    // @}
+
     public static Prefs prefs = null;
 
     private static boolean oldFullscreen = false, oldHideCutout = false;
@@ -106,12 +125,17 @@ public class MainActivity extends AppCompatActivity {
             if (ACTION_START.equals(intent.getAction())) {
                 try {
                     Log.v("LorieBroadcastReceiver", "Got new ACTION_START intent");
+                    // ZeroTermux add {@
+                    Log.d("SurfaceChangedListener", " Got new ACTION_START intent");
+                    // @}
                     onReceiveConnection(intent);
                 } catch (Exception e) {
                     Log.e("MainActivity", "Something went wrong while we extracted connection details from binder.", e);
                 }
             } else if (ACTION_STOP.equals(intent.getAction())) {
-                finishAffinity();
+                // ZeroTermux modify {@
+                mActivity.finishAffinity();
+                // @}
             } else if (ACTION_PREFERENCES_CHANGED.equals(intent.getAction())) {
                 Log.d("MainActivity", "preference: " + intent.getStringExtra("key"));
                 if (!"additionalKbdVisible".equals(intent.getStringExtra("key")))
@@ -127,7 +151,9 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public boolean onPreDraw() {
             if (LorieView.connected())
-                handler.post(() -> findViewById(android.R.id.content).getViewTreeObserver().removeOnPreDrawListener(mOnPredrawListener));
+                // ZeroTermux modify {@
+                handler.post(() -> mActivity.findViewById(android.R.id.content).getViewTreeObserver().removeOnPreDrawListener(mOnPredrawListener));
+                // @}
             return false;
         }
     };
@@ -135,9 +161,12 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("StaticFieldLeak")
     private static MainActivity instance;
 
-    public MainActivity() {
+    // ZeroTermux modify {@
+    public MainActivity(Activity activity) {
+        super(activity);
         instance = this;
     }
+    // @}
 
     public static Prefs getPrefs() {
         return prefs;
@@ -147,12 +176,10 @@ public class MainActivity extends AppCompatActivity {
         return instance;
     }
 
-    @Override
-    @SuppressLint({"AppCompatMethod", "ObsoleteSdkInt", "ClickableViewAccessibility", "WrongConstant", "UnspecifiedRegisterReceiverFlag"})
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    // ZeroTermux modify {@
+    public void init() {
 
-        prefs = new Prefs(this);
+        prefs = new Prefs(mActivity);
         int modeValue = Integer.parseInt(prefs.touchMode.get()) - 1;
         if (modeValue > 2)
             prefs.touchMode.put("1");
@@ -162,19 +189,19 @@ public class MainActivity extends AppCompatActivity {
 
         prefs.get().registerOnSharedPreferenceChangeListener(preferencesChangedListener);
 
-        getWindow().setFlags(FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS | FLAG_KEEP_SCREEN_ON | FLAG_TRANSLUCENT_STATUS, 0);
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
-        setContentView(R.layout.main_activity);
-
         frm = findViewById(R.id.frame);
-        findViewById(R.id.preferences_button).setOnClickListener((l) -> startActivity(new Intent(this, LoriePreferences.class) {{ setAction(Intent.ACTION_MAIN); }}));
-        findViewById(R.id.help_button).setOnClickListener((l) -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/termux/termux-x11/blob/master/README.md#running-graphical-applications"))));
-        findViewById(R.id.exit_button).setOnClickListener((l) -> finish());
+        findViewById(R.id.preferences_button).setOnClickListener((l) -> mActivity.startActivity(new Intent(mActivity, LoriePreferences.class) {{ setAction(Intent.ACTION_MAIN); }}));
+        findViewById(R.id.help_button).setOnClickListener((l) -> mActivity.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/termux/termux-x11/blob/master/README.md#running-graphical-applications"))));
+        findViewById(R.id.exit_button).setOnClickListener((l) -> mActivity.finish());
 
-        LorieView lorieView = findViewById(R.id.lorieView);
-        View lorieParent = (View) lorieView.getParent();
-
-        mInputHandler = new TouchInputHandler(this, new InputEventSender(lorieView));
+        mLorieView = findViewById(R.id.lorieView);
+        frame = findViewById(R.id.frame);
+        View lorieParent = (View) mLorieView.getParent();
+        // @}
+        // ZeroTermux modify {@
+        //mInputHandler = new TouchInputHandler(this, new InputEventSender(mLorieView));
+        mInputHandler = new TouchInputHandler(this, new InputEventSender(mLorieView), mSettingsClick);
+        // @}
         mLorieKeyListener = (v, k, e) -> {
             InputDevice dev = e.getDevice();
             boolean result = mInputHandler.sendKeyEvent(e);
@@ -191,45 +218,68 @@ public class MainActivity extends AppCompatActivity {
             if (e.getAction() == MotionEvent.ACTION_DOWN)
                 lorieParent.requestUnbufferedDispatch(e);
 
-            return mInputHandler.handleTouchEvent(lorieParent, lorieView, e);
+            return mInputHandler.handleTouchEvent(lorieParent, mLorieView, e);
         });
-        lorieParent.setOnHoverListener((v, e) -> mInputHandler.handleTouchEvent(lorieParent, lorieView, e));
-        lorieParent.setOnGenericMotionListener((v, e) -> mInputHandler.handleTouchEvent(lorieParent, lorieView, e));
-        lorieView.setOnCapturedPointerListener((v, e) -> mInputHandler.handleTouchEvent(lorieView, lorieView, e));
-        lorieParent.setOnCapturedPointerListener((v, e) -> mInputHandler.handleTouchEvent(lorieView, lorieView, e));
-        lorieView.setOnKeyListener(mLorieKeyListener);
+        lorieParent.setOnHoverListener((v, e) -> mInputHandler.handleTouchEvent(lorieParent, mLorieView, e));
+        lorieParent.setOnGenericMotionListener((v, e) -> mInputHandler.handleTouchEvent(lorieParent, mLorieView, e));
+        mLorieView.setOnCapturedPointerListener((v, e) -> mInputHandler.handleTouchEvent(mLorieView, mLorieView, e));
+        lorieParent.setOnCapturedPointerListener((v, e) -> mInputHandler.handleTouchEvent(mLorieView, mLorieView, e));
+        mLorieView.setOnKeyListener(mLorieKeyListener);
 
-        lorieView.setCallback((surfaceWidth, surfaceHeight, screenWidth, screenHeight) -> {
+        mLorieView.setCallback((surfaceWidth, surfaceHeight, screenWidth, screenHeight) -> {
+            // ZeroTermux add {@
+            Log.d("SurfaceChangedListener", "Surface setCallback.");
+            // @}
             String name;
-            int framerate = (int) ((lorieView.getDisplay() != null) ? lorieView.getDisplay().getRefreshRate() : 30);
+            // ZeroTermux modify {@
+            int framerate = (int) ((mLorieView.getDisplay() != null) ? mLorieView.getDisplay().getRefreshRate() : 30);
+            // @}
 
             mInputHandler.handleHostSizeChanged(surfaceWidth, surfaceHeight);
             mInputHandler.handleClientSizeChanged(screenWidth, screenHeight);
-            if (lorieView.getDisplay() == null || lorieView.getDisplay().getDisplayId() == Display.DEFAULT_DISPLAY)
+            if (mLorieView.getDisplay() == null || mLorieView.getDisplay().getDisplayId() == Display.DEFAULT_DISPLAY)
                 name = "builtin";
-            else if (SamsungDexUtils.checkDeXEnabled(this))
+            // ZeroTermux modify {@
+            else if (SamsungDexUtils.checkDeXEnabled(mActivity))
+            // @}
                 name = "dex";
             else
                 name = "external";
             LorieView.sendWindowChange(screenWidth, screenHeight, framerate, name);
         });
+        // ZeroTermux add {@
+        Log.d("SurfaceChangedListener", " start registerReceiver....");
+        Log.d("SurfaceChangedListener", " start SDK_INT :" + SDK_INT);
+        Log.d("SurfaceChangedListener", " start TIRAMISU :" + VERSION_CODES.TIRAMISU);
+        // @}
+        // ZeroTermux modify {@
+        IntentFilter runtimeFilter = new IntentFilter();
+        runtimeFilter.addAction(ACTION_PREFERENCES_CHANGED);
+        runtimeFilter.addAction(ACTION_STOP);
+        runtimeFilter.addAction(ACTION_CUSTOM);
+        mActivity.registerReceiver(receiver, runtimeFilter, SDK_INT >= VERSION_CODES.TIRAMISU ? RECEIVER_EXPORTED : 0);
+        // @}
+        Log.d("SurfaceChangedListener", " start registerReceiver OK...");
 
-        registerReceiver(receiver, new IntentFilter(ACTION_START) {{
-            addAction(ACTION_PREFERENCES_CHANGED);
-            addAction(ACTION_STOP);
-            addAction(ACTION_CUSTOM);
-        }}, SDK_INT >= VERSION_CODES.TIRAMISU ? RECEIVER_EXPORTED : 0);
 
-        inputMethodManager = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        // ZeroTermux modify {@
+        inputMethodManager = (InputMethodManager) mActivity.getSystemService(Context.INPUT_METHOD_SERVICE);
+        // @}
 
         // Taken from Stackoverflow answer https://stackoverflow.com/questions/7417123/android-how-to-adjust-layout-in-full-screen-mode-when-softkeyboard-is-visible/7509285#
-        FullscreenWorkaround.assistActivity(this);
-        mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        mNotification = buildNotification();
-        mNotificationManager.notify(mNotificationId, mNotification);
+        // ZeroTermux modify {@
+        FullscreenWorkaround.assistActivity(mActivity);
+        // @}
+        // ZeroTermux delete {@
+        //mNotificationManager = (NotificationManager) mActivity.getSystemService(Context.NOTIFICATION_SERVICE);
+        //mNotification = buildNotification();
+        // mNotificationManager.notify(mNotificationId, mNotification);
+        // @}
 
         if (tryConnect()) {
-            final View content = findViewById(android.R.id.content);
+            // ZeroTermux modify {@
+            final View content = mActivity.findViewById(android.R.id.content);
+            // @}
             content.getViewTreeObserver().addOnPreDrawListener(mOnPredrawListener);
             handler.postDelayed(() -> content.getViewTreeObserver().removeOnPreDrawListener(mOnPredrawListener), 500);
         }
@@ -241,20 +291,27 @@ public class MainActivity extends AppCompatActivity {
         initMouseAuxButtons();
 
         if (SDK_INT >= VERSION_CODES.TIRAMISU
-                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PERMISSION_GRANTED
-                && !shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 0);
+                // ZeroTermux modify {@
+                && mActivity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PERMISSION_GRANTED
+                && !mActivity.shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+            mActivity.requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 0);
+                // @}
         }
 
-        onReceiveConnection(getIntent());
-        findViewById(android.R.id.content).addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> makeSureHelpersAreVisibleAndInScreenBounds());
+        // ZeroTermux add {@
+        CmdEntryPointStartReceiver.consumePendingConnection(this);
+        // @}
+        // ZeroTermux modify {@
+        onReceiveConnection(mActivity.getIntent());
+        mActivity.findViewById(android.R.id.content).addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> makeSureHelpersAreVisibleAndInScreenBounds());
+        // @}
     }
 
-    @Override
-    protected void onDestroy() {
-        unregisterReceiver(receiver);
-        super.onDestroy();
+    // ZeroTermux modify {@
+    public void onDestroy(Activity activity) {
+        activity.unregisterReceiver(receiver);
     }
+    // @}
 
     //Register the needed events to handle stylus as left, middle and right click
     @SuppressLint("ClickableViewAccessibility")
@@ -398,12 +455,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void setSize(View v, int width, int height) {
+        // ZeroTermux modify {@
         ViewGroup.LayoutParams p = v.getLayoutParams();
-        p.width = (int) (width * getResources().getDisplayMetrics().density);
-        p.height = (int) (height * getResources().getDisplayMetrics().density);
+        p.width = (int) (width * mActivity.getResources().getDisplayMetrics().density);
+        p.height = (int) (height * mActivity.getResources().getDisplayMetrics().density);
         v.setLayoutParams(p);
-        v.setMinimumWidth((int) (width * getResources().getDisplayMetrics().density));
-        v.setMinimumHeight((int) (height * getResources().getDisplayMetrics().density));
+        v.setMinimumWidth((int) (width * mActivity.getResources().getDisplayMetrics().density));
+        v.setMinimumHeight((int) (height * mActivity.getResources().getDisplayMetrics().density));
+        // @}
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -457,7 +516,9 @@ public class MainActivity extends AppCompatActivity {
         }));
 
         pos.setOnTouchListener(new View.OnTouchListener() {
-            final int touchSlop = (int) Math.pow(ViewConfiguration.get(MainActivity.this).getScaledTouchSlop(), 2);
+            // ZeroTermux modify {@
+            final int touchSlop = (int) Math.pow(ViewConfiguration.get(mActivity).getScaledTouchSlop(), 2);
+            // @}
             final int tapTimeout = ViewConfiguration.getTapTimeout();
             final float[] startOffset = new float[2];
             final int[] startPosition = new int[2];
@@ -507,16 +568,27 @@ public class MainActivity extends AppCompatActivity {
     void onReceiveConnection(Intent intent) {
         Bundle bundle = intent == null ? null : intent.getBundleExtra(null);
         IBinder ibinder = bundle == null ? null : bundle.getBinder(null);
+        // ZeroTermux add {@
+        Log.d("SurfaceChangedListener", " bundle: " + bundle);
+        Log.d("SurfaceChangedListener", " ibinder: " + ibinder);
+        // @}
         if (ibinder == null)
             return;
 
         service = ICmdEntryInterface.Stub.asInterface(ibinder);
+        // ZeroTermux add {@
+        Log.d("SurfaceChangedListener", " service: " + service);
+        // @}
         try {
             service.asBinder().linkToDeath(() -> {
                 service = null;
-
+                // ZeroTermux add {@
+                Log.d("SurfaceChangedListener", " Disconnected.");
+                // @}
                 Log.v("Lorie", "Disconnected");
-                runOnUiThread(() -> { LorieView.connect(-1); clientConnectedStateChanged();} );
+                // ZeroTermux modify {@
+                mActivity.runOnUiThread(() -> { LorieView.connect(-1); clientConnectedStateChanged();} );
+                // @}
             }, 0);
         } catch (RemoteException ignored) {}
 
@@ -529,8 +601,15 @@ public class MainActivity extends AppCompatActivity {
 
                 tryConnect();
 
-                if (intent != getIntent())
-                    getIntent().putExtra(null, bundle);
+                // ZeroTermux modify {@
+                Intent activityIntent = mActivity.getIntent();
+                if (intent != activityIntent) {
+                    if (activityIntent != null)
+                        activityIntent.putExtra(null, bundle);
+                    else
+                        mActivity.setIntent(new Intent(CmdEntryPoint.ACTION_START).putExtra(null, bundle));
+                }
+                // @}
             }
         } catch (Exception e) {
             Log.e("MainActivity", "Something went wrong while we were establishing connection", e);
@@ -575,10 +654,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("UnsafeIntentLaunch")
+    // ZeroTermux modify {@
     void onPreferencesChangedCallback() {
         prefs.recheckStoringSecondaryDisplayPreferences();
 
-        onWindowFocusChanged(hasWindowFocus());
+        onWindowFocusChanged(mActivity.hasWindowFocus());
         LorieView lorieView = getLorieView();
 
         mInputHandler.reloadPreferences(prefs);
@@ -590,8 +670,8 @@ public class MainActivity extends AppCompatActivity {
 
         filterOutWinKey = prefs.filterOutWinkey.get();
         if (prefs.enableAccessibilityServiceAutomatically.get())
-            KeyInterceptor.launch(this);
-        else if (checkSelfPermission(WRITE_SECURE_SETTINGS) == PERMISSION_GRANTED)
+            KeyInterceptor.launch(mActivity);
+        else if (mActivity.checkSelfPermission(WRITE_SECURE_SETTINGS) == PERMISSION_GRANTED)
             KeyInterceptor.shutdown(true);
 
         useTermuxEKBarBehaviour = prefs.useTermuxEKBarBehaviour.get();
@@ -606,53 +686,62 @@ public class MainActivity extends AppCompatActivity {
         lorieView.requestLayout();
         lorieView.invalidate();
 
-        for (StatusBarNotification notification: mNotificationManager.getActiveNotifications())
+       /* for (StatusBarNotification notification: mNotificationManager.getActiveNotifications())
             if (notification.getId() == mNotificationId) {
                 mNotification = buildNotification();
                 mNotificationManager.notify(mNotificationId, mNotification);
-            }
+            }*/
     }
 
-    @Override
     public void onResume() {
-        super.onResume();
-
-        mNotification = buildNotification();
-        mNotificationManager.notify(mNotificationId, mNotification);
+       /* mNotification = buildNotification();
+        mNotificationManager.notify(mNotificationId, mNotification);*/
 
         setTerminalToolbarView();
         getLorieView().requestFocus();
     }
 
-    @Override
     public void onPause() {
-        inputMethodManager.hideSoftInputFromWindow(getWindow().getDecorView().getRootView().getWindowToken(), 0);
-
-        for (StatusBarNotification notification: mNotificationManager.getActiveNotifications())
+        inputMethodManager.hideSoftInputFromWindow(mActivity.getWindow().getDecorView().getRootView().getWindowToken(), 0);
+  /*      for (StatusBarNotification notification: mNotificationManager.getActiveNotifications())
             if (notification.getId() == mNotificationId)
-                mNotificationManager.cancel(mNotificationId);
-
-        super.onPause();
+                mNotificationManager.cancel(mNotificationId);*/
     }
+    // @}
 
+    // ZeroTermux modify {@
     public LorieView getLorieView() {
-        return findViewById(R.id.lorieView);
+        return mLorieView;
     }
+    // @}
+    // ZeroTermux add {@
+    public FrameLayout getFrame() {
+        return frame;
+    }
+    // @}
 
+    // ZeroTermux modify {@
     public ViewPager getTerminalToolbarViewPager() {
-        return findViewById(R.id.terminal_toolbar_view_pager);
+        return findViewById(R.id.terminal_toolbar_view_pager_x11);
     }
+    // @}
 
+    // ZeroTermux add {@
+    public void setTerminalToolbarViewVisible(boolean visible) {
+        this.isVisible = visible;
+        setTerminalToolbarView();
+    }
+    // @}
+
+    // ZeroTermux modify {@
     private void setTerminalToolbarView() {
         final ViewPager pager = getTerminalToolbarViewPager();
         ViewGroup parent = (ViewGroup) pager.getParent();
 
-        boolean showNow = LorieView.connected() && prefs.showAdditionalKbd.get() && prefs.additionalKbdVisible.get();
+        pager.setVisibility(isVisible ? View.VISIBLE : View.INVISIBLE);
 
-        pager.setVisibility(showNow ? View.VISIBLE : View.INVISIBLE);
-
-        if (showNow) {
-            pager.setAdapter(new X11ToolbarViewPager.PageAdapter(this, (v, k, e) -> mInputHandler.sendKeyEvent(e)));
+        if (isVisible) {
+            pager.setAdapter(new X11ToolbarViewPager.PageAdapter(this, (v, k, e) -> mInputHandler.sendKeyEvent(e), mSettingsClick));
             pager.clearOnPageChangeListeners();
             pager.addOnPageChangeListener(new X11ToolbarViewPager.OnPageChangeListener(this, pager));
             pager.bringToFront();
@@ -664,11 +753,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         ViewGroup.LayoutParams layoutParams = pager.getLayoutParams();
-        layoutParams.height = Math.round(37.5f * getResources().getDisplayMetrics().density *
+        layoutParams.height = Math.round(37.5f * mActivity.getResources().getDisplayMetrics().density *
                 (TermuxX11ExtraKeys.getExtraKeysInfo() == null ? 0 : TermuxX11ExtraKeys.getExtraKeysInfo().getMatrix().length));
         pager.setLayoutParams(layoutParams);
 
-        frm.setPadding(0, 0, 0, prefs.adjustHeightForEK.get() && showNow ? layoutParams.height : 0);
+        frm.setPadding(0, 0, 0, prefs.adjustHeightForEK.get() && isVisible ? layoutParams.height : 0);
         getLorieView().requestFocus();
     }
 
@@ -679,7 +768,7 @@ public class MainActivity extends AppCompatActivity {
             prefs.additionalKbdVisible.put(visible);
 
         setTerminalToolbarView();
-        getWindow().setSoftInputMode(prefs.Reseed.get() ? SOFT_INPUT_ADJUST_RESIZE : SOFT_INPUT_ADJUST_PAN);
+        mActivity.getWindow().setSoftInputMode(prefs.Reseed.get() ? SOFT_INPUT_ADJUST_RESIZE : SOFT_INPUT_ADJUST_PAN);
     }
 
     public void toggleExtraKeys() {
@@ -687,28 +776,38 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public boolean handleKey(KeyEvent e) {
+        Log.i("TAG", "handleKey e: " + e.getKeyCode());
         if (filterOutWinKey && (e.getKeyCode() == KEYCODE_META_LEFT || e.getKeyCode() == KEYCODE_META_RIGHT || e.isMetaPressed()))
             return false;
+
+        if (mMainActivityOnKeyDown != null && mMainActivityOnKeyDown.onKeyDown(e.getKeyCode(), e)) {
+            return true;
+        }
+        Log.i("TAG", "handleKey e111: " + e.getKeyCode());
         return mLorieKeyListener.onKey(getLorieView(), e.getKeyCode(), e);
     }
+    // @}
 
     @SuppressLint("ObsoleteSdkInt")
-    Notification buildNotification() {
-        NotificationCompat.Builder builder =  new NotificationCompat.Builder(this, getNotificationChannel(mNotificationManager))
+// ZeroTermux delete {@
+/*    Notification buildNotification() {
+        NotificationCompat.Builder builder =  new NotificationCompat.Builder(mActivity, getNotificationChannel(mNotificationManager))
                 .setContentTitle("Termux:X11")
                 .setSmallIcon(R.drawable.ic_x11_icon)
-                .setContentText(getResources().getText(R.string.lorie_notification_content_text))
+                .setContentText(mActivity.getResources().getText(R.string.notification_content_text))
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_MAX)
                 .setSilent(true)
                 .setShowWhen(false)
                 .setColor(0xFF607D8B);
         return mInputHandler.setupNotification(prefs, builder).build();
-    }
+    }*/
+// @}
 
+    // ZeroTermux modify {@
     private String getNotificationChannel(NotificationManager notificationManager){
-        String channelId = getResources().getString(R.string.app_name);
-        String channelName = getResources().getString(R.string.app_name);
+        String channelId = mActivity.getResources().getString(R.string.app_name);
+        String channelName = mActivity.getResources().getString(R.string.app_name);
         NotificationChannel channel = new NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_HIGH);
         channel.setImportance(NotificationManager.IMPORTANCE_HIGH);
         channel.setLockscreenVisibility(Notification.VISIBILITY_SECRET);
@@ -720,24 +819,21 @@ public class MainActivity extends AppCompatActivity {
 
     int orientation;
 
-    @Override
+    //
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
 
         if (newConfig.orientation != orientation)
-            inputMethodManager.hideSoftInputFromWindow(getWindow().getDecorView().getRootView().getWindowToken(), 0);
+            inputMethodManager.hideSoftInputFromWindow(mActivity.getWindow().getDecorView().getRootView().getWindowToken(), 0);
 
         orientation = newConfig.orientation;
         setTerminalToolbarView();
     }
 
-    @SuppressLint("WrongConstant")
-    @Override
+    //
     public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
         KeyInterceptor.recheck();
         prefs.recheckStoringSecondaryDisplayPreferences();
-        Window window = getWindow();
+        Window window = mActivity.getWindow();
         View decorView = window.getDecorView();
         boolean fullscreen = prefs.fullscreen.get();
         boolean hideCutout = prefs.hideCutout.get();
@@ -748,7 +844,7 @@ public class MainActivity extends AppCompatActivity {
             oldFullscreen = fullscreen;
             // For some reason cutout or fullscreen change makes layout calculations wrong and invalid.
             // I did not find simple and reliable way to fix it so it is better to start from the beginning.
-            recreate();
+            mActivity.recreate();
             return;
         }
 
@@ -761,17 +857,17 @@ public class MainActivity extends AppCompatActivity {
             default: requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
         }
 
-        if (getRequestedOrientation() != requestedOrientation)
-            setRequestedOrientation(requestedOrientation);
+        if (mActivity.getRequestedOrientation() != requestedOrientation)
+            mActivity.setRequestedOrientation(requestedOrientation);
 
         if (hasFocus) {
             if (SDK_INT >= VERSION_CODES.P) {
                 if (hideCutout)
-                    getWindow().getAttributes().layoutInDisplayCutoutMode = (SDK_INT >= VERSION_CODES.R) ?
+                    mActivity.getWindow().getAttributes().layoutInDisplayCutoutMode = (SDK_INT >= VERSION_CODES.R) ?
                             LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS :
                             LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
                 else
-                    getWindow().getAttributes().layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+                    mActivity.getWindow().getAttributes().layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
             }
 
             window.setStatusBarColor(Color.BLACK);
@@ -802,12 +898,13 @@ public class MainActivity extends AppCompatActivity {
 
         window.setSoftInputMode(reseed ? SOFT_INPUT_ADJUST_RESIZE : SOFT_INPUT_ADJUST_PAN);
 
-        ((FrameLayout) findViewById(android.R.id.content)).getChildAt(0).setFitsSystemWindows(!fullscreen);
+        ((FrameLayout) mActivity.findViewById(android.R.id.content)).getChildAt(0).setFitsSystemWindows(!fullscreen);
     }
 
-    @Override
+    //
     public void onBackPressed() {
     }
+    // @}
 
     public static boolean hasPipPermission(@NonNull Context context) {
         AppOpsManager appOpsManager = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
@@ -819,22 +916,21 @@ public class MainActivity extends AppCompatActivity {
             return appOpsManager.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, android.os.Process.myUid(), context.getPackageName()) == AppOpsManager.MODE_ALLOWED;
     }
 
-    @Override
+    // ZeroTermux modify {@
+    //
     public void onUserLeaveHint() {
-        if (prefs.PIP.get() && hasPipPermission(this)) {
-            enterPictureInPictureMode();
+        if (prefs.PIP.get() && hasPipPermission(mActivity)) {
+            mActivity.enterPictureInPictureMode();
         }
     }
 
-    @Override
+
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, @NonNull Configuration newConfig) {
         this.isInPictureInPictureMode = isInPictureInPictureMode;
         final ViewPager pager = getTerminalToolbarViewPager();
         pager.setAlpha(isInPictureInPictureMode ? 0.f : ((float) prefs.opacityEKBar.get())/100);
         findViewById(R.id.mouse_buttons).setAlpha(isInPictureInPictureMode ? 0.f : 0.7f);
         findViewById(R.id.mouse_helper_visibility).setAlpha(isInPictureInPictureMode ? 0.f : 1.f);
-
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
     }
 
     /**
@@ -848,7 +944,7 @@ public class MainActivity extends AppCompatActivity {
             if (!externalKeyboardConnected || showIMEWhileExternalConnected)
                 inputMethodManager.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
             else
-                inputMethodManager.hideSoftInputFromWindow(getInstance().getWindow().getDecorView().getRootView().getWindowToken(), 0);
+                inputMethodManager.hideSoftInputFromWindow(getInstance().mActivity.getWindow().getDecorView().getRootView().getWindowToken(), 0);
 
             getInstance().getLorieView().requestFocus();
         }
@@ -856,22 +952,23 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressWarnings("SameParameterValue")
     void clientConnectedStateChanged() {
-        runOnUiThread(()-> {
+        mActivity.runOnUiThread(()-> {
             boolean connected = LorieView.connected();
             setTerminalToolbarView();
             findViewById(R.id.mouse_buttons).setVisibility(prefs.showMouseHelper.get() && "1".equals(prefs.touchMode.get()) && connected ? View.VISIBLE : View.GONE);
-            findViewById(R.id.stub).setVisibility(connected?View.INVISIBLE:View.VISIBLE);
+           // findViewById(R.id.stub).setVisibility(connected?View.INVISIBLE:View.VISIBLE);
             getLorieView().setVisibility(connected?View.VISIBLE:View.INVISIBLE);
 
             // We should recover connection in the case if file descriptor for some reason was broken...
             if (!connected)
                 tryConnect();
             else
-                getLorieView().setPointerIcon(PointerIcon.getSystemIcon(this, PointerIcon.TYPE_NULL));
+                getLorieView().setPointerIcon(PointerIcon.getSystemIcon(mActivity, PointerIcon.TYPE_NULL));
 
-            onWindowFocusChanged(hasWindowFocus());
+            onWindowFocusChanged(mActivity.hasWindowFocus());
         });
     }
+    // @}
 
     public static boolean isConnected() {
         if (getInstance() == null)
@@ -896,7 +993,9 @@ public class MainActivity extends AppCompatActivity {
 
     public boolean shouldInterceptKeys() {
         View textInput = findViewById(R.id.terminal_toolbar_text_input);
-        if (mInputHandler == null || !hasWindowFocus() || (textInput != null && textInput.isFocused()))
+        // ZeroTermux modify {@
+        if (mInputHandler == null || !mActivity.hasWindowFocus() || (textInput != null && textInput.isFocused()))
+        // @}
             return false;
 
         return mInputHandler.shouldInterceptKeys();
@@ -908,7 +1007,38 @@ public class MainActivity extends AppCompatActivity {
         if (textInput != null)
             textInput.setShowSoftInputOnFocus(!connected || showIMEWhileExternalConnected);
         if (connected && !showIMEWhileExternalConnected)
-            inputMethodManager.hideSoftInputFromWindow(getWindow().getDecorView().getRootView().getWindowToken(), 0);
+            // ZeroTermux modify {@
+            inputMethodManager.hideSoftInputFromWindow(mActivity.getWindow().getDecorView().getRootView().getWindowToken(), 0);
+            // @}
         getLorieView().requestFocus();
     }
+
+    // ZeroTermux add {@
+    public MainActivityOnKeyDown getMainActivityOnKeyDown() {
+        return mMainActivityOnKeyDown;
+    }
+
+    public void setMainActivityOnKeyDown(MainActivityOnKeyDown mMainActivityOnKeyDown) {
+        this.mMainActivityOnKeyDown = mMainActivityOnKeyDown;
+    }
+
+
+    public SettingsClick getSettingsClick() {
+        return mSettingsClick;
+    }
+
+    public void setSettingsClick(SettingsClick mSettingsClick) {
+        this.mSettingsClick = mSettingsClick;
+    }
+
+    @Keep
+    public interface MainActivityOnKeyDown {
+        boolean onKeyDown(int keyCode, KeyEvent event);
+    }
+
+    @Keep
+    public interface SettingsClick {
+        void onClick();
+    }
+    // @}
 }

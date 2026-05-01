@@ -1,5 +1,8 @@
 package com.termux.x11;
 
+// ZeroTermux add {@
+import static android.os.Build.VERSION.SDK_INT;
+// @}
 import static android.system.Os.getuid;
 import static android.system.Os.getenv;
 
@@ -25,6 +28,9 @@ import androidx.annotation.Keep;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+// ZeroTermux add {@
+import java.lang.reflect.Method;
+// @}
 import java.net.URL;
 
 @Keep @SuppressLint({"StaticFieldLeak", "UnsafeDynamicallyLoadedCode"})
@@ -41,14 +47,31 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
      */
     public static void main(String[] args) {
         android.util.Log.i("CmdEntryPoint", "commit " + BuildConfig.COMMIT);
+		// ZeroTermux add {@
+        Log.d("SurfaceChangedListener", " main...... ");
+		// @}
         handler.post(() -> new CmdEntryPoint(args));
         Looper.loop();
     }
-
+	// ZeroTermux add {@
+    public static void mainZeroTermux(String[] args) {
+        android.util.Log.i("CmdEntryPoint", "commit " + BuildConfig.COMMIT);
+        Log.d("SurfaceChangedListener", " main...... ");
+        handler.post(() -> new CmdEntryPoint(args));
+        Looper.loop();
+    }
+	// @}
     CmdEntryPoint(String[] args) {
-        if (!start(args))
+        if (!start(args)) {
+			// ZeroTermux add {@
+            Log.i("CmdEn", "start is false");
+			// @}
             System.exit(1);
-
+        }
+			// ZeroTermux add {@
+        Log.i("CmdEn", "start landing......");
+        Log.d("SurfaceChangedListener", " start landing...... ");
+		// @}
         spawnListeningThread();
         sendBroadcastDelayed();
     }
@@ -56,17 +79,23 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
     @SuppressLint({"WrongConstant", "PrivateApi"})
     private Intent createIntent() {
         String targetPackage = getenv("TERMUX_X11_OVERRIDE_PACKAGE");
-        if (targetPackage == null)
-            targetPackage = "com.termux.x11";
+		// ZeroTermux modify {@
+		if (targetPackage == null)
+            targetPackage = "com.termux";
+		// @}
         // We should not care about multiple instances, it should be called only by `Termux:X11` app
         // which is single instance...
+
         Bundle bundle = new Bundle();
         bundle.putBinder(null, this);
 
         Intent intent = new Intent(ACTION_START);
         intent.putExtra(null, bundle);
         intent.setPackage(targetPackage);
-
+		// ZeroTermux add {@
+		intent.setClassName(targetPackage, CmdEntryPointStartReceiver.class.getName());
+        Log.d("SurfaceChangedListener", " send bundle :" + bundle);
+		// @}
         if (getuid() == 0 || getuid() == 2000)
             intent.setFlags(0x00400000 /* FLAG_RECEIVER_FROM_SHELL */);
 
@@ -86,49 +115,140 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
             else
                 Log.e("Broadcast", "Falling back to manual broadcasting, failed to broadcast intent through Context:", e);
 
+			// ZeroTermux modify {@
             String packageName;
             try {
-                packageName = android.app.ActivityThread.getPackageManager().getPackagesForUid(getuid())[0];
+                android.content.pm.IPackageManager packageManager = android.app.ActivityThread.getPackageManager();
+                if (packageManager != null) {
+                    String[] packages = packageManager.getPackagesForUid(getuid());
+                    if (packages != null && packages.length > 0 && packages[0] != null)
+                        packageName = packages[0];
+                    else
+                        packageName = intent.getPackage();
+                } else {
+                    packageName = intent.getPackage();
+                }
+                if (packageName == null)
+                    packageName = "com.termux";
             } catch (RemoteException ex) {
-                throw new RuntimeException(ex);
+                Log.e("Broadcast", "Failed to resolve package for manual broadcast, using target package", ex);
+                packageName = intent.getPackage() != null ? intent.getPackage() : "com.termux";
             }
-            IActivityManager am;
+            Object am;
             try {
                 //noinspection JavaReflectionMemberAccess
-                am = (IActivityManager) android.app.ActivityManager.class
+                am = android.app.ActivityManager.class
                         .getMethod("getService")
                         .invoke(null);
             } catch (Exception e2) {
                 try {
-                    am = (IActivityManager) Class.forName("android.app.ActivityManagerNative")
+                    am = Class.forName("android.app.ActivityManagerNative")
                             .getMethod("getDefault")
                             .invoke(null);
                 } catch (Exception e3) {
-                    throw new RuntimeException(e3);
+                    Log.e("Broadcast", "Failed to resolve activity manager for manual broadcast", e3);
+                    return;
                 }
             }
 
-            assert am != null;
-            IIntentSender sender = am.getIntentSender(1, packageName, null, null, 0, new Intent[] { intent },
-                    null, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT, null, 0);
+            if (am == null) {
+                Log.w("Broadcast", "Activity manager is null, will retry broadcast later");
+                return;
+            }
+            Object sender;
+            try {
+                Class<?> activityManagerInterface = Class.forName("android.app.IActivityManager");
+                sender = null;
+                for (Method method : activityManagerInterface.getMethods()) {
+                    if (!"getIntentSenderWithFeature".equals(method.getName()) && !"getIntentSender".equals(method.getName()))
+                        continue;
+
+                    Object[] args = createGetIntentSenderArgs(method.getParameterTypes(), packageName, intent);
+                    if (args == null)
+                        continue;
+
+                    sender = method.invoke(am, args);
+                    if (sender != null)
+                        break;
+                }
+            } catch (Exception ex) {
+                Log.e("Broadcast", "Failed to create intent sender for manual broadcast", ex);
+                return;
+            }
+            if (sender == null) {
+                Log.w("Broadcast", "Intent sender is null, will retry broadcast later");
+                return;
+            }
             try {
                 //noinspection JavaReflectionMemberAccess
-                IIntentSender.class
-                        .getMethod("send", int.class, Intent.class, String.class, IBinder.class, IIntentReceiver.class, String.class, Bundle.class)
-                        .invoke(sender, 0, intent, null, null, new IIntentReceiver.Stub() {
-                            @Override public void performReceive(Intent i, int r, String d, Bundle e, boolean o, boolean s, int a) {}
-                        }, null, null);
+                Object finishedReceiver = new IIntentReceiver.Stub() {
+                    @Override public void performReceive(Intent i, int r, String d, Bundle e, boolean o, boolean s, int a) {}
+                };
+                try {
+                    IIntentSender.class
+                            .getMethod("send", int.class, Intent.class, String.class, IBinder.class, IIntentReceiver.class, String.class, Bundle.class)
+                            .invoke(sender, 0, intent, null, null, finishedReceiver, null, null);
+                } catch (IllegalArgumentException ex) {
+                    sender.getClass()
+                            .getMethod("send", int.class, Intent.class, String.class, IBinder.class, IIntentReceiver.class, String.class, Bundle.class)
+                            .invoke(sender, 0, intent, null, null, finishedReceiver, null, null);
+                }
             } catch (Exception ex) {
-                throw new RuntimeException(ex);
+                Log.e("Broadcast", "Manual broadcast failed, will retry later", ex);
             }
+			// @}
         }
     }
+
+	// ZeroTermux add {@
+    private static Object[] createGetIntentSenderArgs(Class<?>[] parameterTypes, String packageName, Intent intent) {
+        Object[] args = new Object[parameterTypes.length];
+        int intIndex = 0;
+        int stringIndex = 0;
+
+        for (int i = 0; i < parameterTypes.length; i++) {
+            Class<?> type = parameterTypes[i];
+            if (type == int.class) {
+                if (intIndex == 0)
+                    args[i] = 1;
+                else if (intIndex == 2)
+                    args[i] = PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_ONE_SHOT;
+                else
+                    args[i] = 0;
+                intIndex++;
+            } else if (type == String.class) {
+                args[i] = stringIndex == 0 ? packageName : null;
+                stringIndex++;
+            } else if (type == IBinder.class) {
+                args[i] = null;
+            } else if (type == Intent[].class) {
+                args[i] = new Intent[] { intent };
+            } else if (type == String[].class) {
+                args[i] = null;
+            } else if (type == Bundle.class) {
+                args[i] = null;
+            } else {
+                return null;
+            }
+        }
+
+        return intIndex >= 4 ? args : null;
+    }
+	// @}
 
     // In some cases Android Activity part can not connect opened port.
     // In this case opened port works like a lock file.
     private void sendBroadcastDelayed() {
-        if (!connected())
+		// ZeroTermux add {@
+        Log.d("SurfaceChangedListener", " send intent111 : " + intent);
+		// @}
+        if (!connected()) {
+			// ZeroTermux add {@
+            Log.d("SurfaceChangedListener", " send intent : " + intent);
+			// @}
             sendBroadcast(intent);
+        }
+
 
         handler.postDelayed(this::sendBroadcastDelayed, 1000);
     }
@@ -189,7 +309,10 @@ public class CmdEntryPoint extends ICmdEntryInterface.Stub {
         String libPath = res != null ? res.getFile().replace("file:", "") : null;
         if (libPath != null) {
             try {
-                System.load(libPath);
+				// ZeroTermux add {@
+                System.load("/data/data/com.termux/files/usr/lib/libXlorie.so");
+                //System.loadLibrary("Xlorie");
+				// @}
             } catch (Exception e) {
                 Log.e("CmdEntryPoint", "Failed to dlopen " + libPath, e);
                 System.err.println("Failed to load native library. Did you install the right apk? Try the universal one.");

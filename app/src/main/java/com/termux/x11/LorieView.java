@@ -610,7 +610,10 @@ public class LorieView extends SurfaceView implements InputStub {
         });
 
         Rect r = getHolder().getSurfaceFrame();
-        MainActivity.getInstance().runOnUiThread(() -> mSurfaceCallback.surfaceChanged(getHolder(), PixelFormat.BGRA_8888, r.width(), r.height()));
+        // ZeroTermux modify {@
+        // MainActivity.getInstance().runOnUiThread(() -> mSurfaceCallback.surfaceChanged(getHolder(), PixelFormat.BGRA_8888, r.width(), r.height()));
+        MainActivity.getInstance().mActivity.runOnUiThread(() -> mSurfaceCallback.surfaceChanged(getHolder(), PixelFormat.BGRA_8888, r.width(), r.height()));
+        // @}
     }
 
     void getDimensionsFromSettings() {
@@ -659,8 +662,7 @@ public class LorieView extends SurfaceView implements InputStub {
         if (prefs.displayStretch.get()
               || "native".equals(prefs.displayResolutionMode.get())
               || "scaled".equals(prefs.displayResolutionMode.get())) {
-            if ("bilinear".equals(prefs.displayFilteringMode.get()))
-                getHolder().setSizeFromLayout();
+            getHolder().setSizeFromLayout();
             return;
         }
 
@@ -681,10 +683,7 @@ public class LorieView extends SurfaceView implements InputStub {
         else
             height = width * p.y / p.x;
 
-        if ("bilinear".equals(prefs.displayFilteringMode.get()))
-            getHolder().setFixedSize(p.x, p.y);
-        else
-            getHolder().setSizeFromLayout();
+        getHolder().setFixedSize(p.x, p.y);
         setMeasuredDimension(width, height);
     }
 

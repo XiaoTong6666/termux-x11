@@ -6,6 +6,7 @@ import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
@@ -89,8 +90,10 @@ public class KeyInterceptor extends AccessibilityService {
         }
     }
 
-    @Override
+	// ZeroTermux delete {@
+   /* @Override
     public boolean onKeyEvent(KeyEvent event) {
+        Log.i("TAG", "handleKey onKeyEvent...");
         boolean ret = false;
         MainActivity instance = MainActivity.getInstance();
 
@@ -113,7 +116,8 @@ public class KeyInterceptor extends AccessibilityService {
         recheck();
 
         return ret;
-    }
+    }*/
+	// @}
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {}

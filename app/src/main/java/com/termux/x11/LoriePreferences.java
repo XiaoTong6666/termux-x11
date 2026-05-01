@@ -65,10 +65,6 @@ import com.termux.x11.utils.KeyInterceptor;
 import com.termux.x11.utils.SamsungDexUtils;
 import com.termux.x11.utils.TermuxX11ExtraKeys;
 
-import java.io.StringWriter;
-import java.io.PrintWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Objects;
@@ -109,6 +105,9 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
+		// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx0005: ");
+		// @}
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus)
             updatePreferencesLayout();
@@ -125,17 +124,28 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = new Prefs(this);
-        getSupportFragmentManager().beginTransaction().replace(android.R.id.content, new LoriePreferenceFragment(null)).commit();
-
+		// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx1: ");
+        LoriePreferenceFragment loriePreferenceFragment = new LoriePreferenceFragment(null);
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx1.1: ");
+		// @}
+        getSupportFragmentManager().beginTransaction().replace(android.R.id.content, loriePreferenceFragment).commit();
+		// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx2: ");
+		// @}
         ActionBar actionBar = getSupportActionBar();
         if (actionBar != null) {
             actionBar.setDisplayHomeAsUpEnabled(true);
             actionBar.setHomeButtonEnabled(true);
         }
-
+		// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx3: ");
+		// @}
         Uri ENABLED_ACCESSIBILITY_SERVICES = Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         Uri ACCESSIBILITY_ENABLED = Settings.Secure.getUriFor(Settings.Secure.ACCESSIBILITY_ENABLED);
-
+		// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx4: ");
+		// @}
         getContentResolver().registerContentObserver(ENABLED_ACCESSIBILITY_SERVICES, true, accessibilityObserver);
         getContentResolver().registerContentObserver(ACCESSIBILITY_ENABLED, true, accessibilityObserver);
     }
@@ -156,6 +166,9 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+    	// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx0004: ");
+		// @}
         int id = item.getItemId();
 
         if (id == android.R.id.home) {
@@ -171,6 +184,9 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
     }
 
     private void showFragment(PreferenceFragmentCompat fragment) {
+    	// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx0003: ");
+		// @}
         getSupportFragmentManager().beginTransaction()
                 .setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left, R.anim.slide_in_left, R.anim.slide_out_right)
                 .replace(android.R.id.content, fragment)
@@ -180,6 +196,9 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
     @Override
     public boolean onPreferenceStartFragment(@NonNull PreferenceFragmentCompat caller, @NonNull Preference pref) {
+    	// ZeroTermux add {@
+        Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx0002: ");
+		// @}
         final LoriePreferenceFragment fragment = new LoriePreferenceFragment(pref.getFragment());
         fragment.setTargetFragment(caller, 0);
         showFragment(fragment);
@@ -188,23 +207,32 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
     public static class LoriePreferenceFragment extends PreferenceFragmentCompat implements OnPreferenceChangeListener {
         private final Runnable updateLayout = this::updatePreferencesLayout;
-        private static final Method onSetInitialValue;
+		// ZeroTermux delete {@
+       // private static final Method onSetInitialValue;
+	   // @}
         static {
-            try {
-                onSetInitialValue = Preference.class.getDeclaredMethod("onSetInitialValue", boolean.class, Object.class);
-                onSetInitialValue.setAccessible(true);
+		// ZeroTermux delete {@
+          /*  try {
+                Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11143: ");
+                //noinspection JavaReflectionMemberAccess
+                //onSetInitialValue = Preference.class.getMethod("onSetInitialValue", boolean.class, Object.class);
+                Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11152: ");
             } catch (NoSuchMethodException e) {
                 throw new RuntimeException(e);
-            }
+            }*/
+			// @}
         }
 
         void onSetInitialValue(Preference p) {
-            try {
+		// ZeroTermux modify {@
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11142: ");
+           /* try {
                 onSetInitialValue.invoke(p, false, null);
             } catch (IllegalAccessException | InvocationTargetException e) {
                 throw new RuntimeException(e);
-            }
+            }*/
         }
+		// @}
 
         final String root;
         /** @noinspection unused*/ // Used by `androidx.fragment.app.Fragment.instantiate`...
@@ -268,9 +296,13 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
                     list.setSummaryProvider(ListPreference.SimpleSummaryProvider.getInstance());
                 }
             }
-
-            with("showAdditionalKbd", p -> p.setLayoutResource(R.layout.preference));
-            with("version", p -> p.setSummary(BuildConfig.VERSION_NAME));
+			// ZeroTermux modify {@
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx10: ");
+			//with("showAdditionalKbd", p -> p.setLayoutResource(R.layout.preference));
+            //with("version", p -> p.setSummary(BuildConfig.VERSION_NAME));
+            with("showAdditionalKbd", p -> p.setLayoutResource(R.layout.preference_x11));
+            with("version", p -> p.setSummary("1"));
+			// @}
 
             setSummary("displayStretch", R.string.lorie_pref_summary_requiresExactOrCustom);
             setSummary("adjustResolution", R.string.lorie_pref_summary_requiresExactOrCustom);
@@ -287,7 +319,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
                     .mapToObj(InputDevice::getDevice)
                     .filter(Objects::nonNull)
                     .anyMatch(d -> d.supportsSource(InputDevice.SOURCE_STYLUS));
-
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11: ");
             setVisible("showStylusClickOverride", stylusAvailable);
             setVisible("stylusIsMouse", stylusAvailable);
             setVisible("stylusButtonContactModifierMode", stylusAvailable);
@@ -298,6 +330,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
         }
 
         private void setSummary(CharSequence key, int disabled) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11137: ");
             Preference pref = findPreference(key);
             if (pref != null)
                 pref.setSummaryProvider(new Preference.SummaryProvider<>() {
@@ -308,12 +341,14 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
         }
 
         private void setVisible(CharSequence key, boolean value) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11136: ");
             Preference p = findPreference(key);
             if (p != null)
                 p.setVisible(value);
         }
 
         private void setEnabled(CharSequence key, boolean value) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11135: ");
             Preference p = findPreference(key);
             if (p != null)
                 p.setEnabled(value);
@@ -321,6 +356,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
         @SuppressWarnings("ConstantConditions")
         void updatePreferencesLayout() {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11134: ");
             if (getContext() == null)
                 return;
 
@@ -329,7 +365,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
                 if (p != null)
                     onSetInitialValue(p);
             }
-
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx112: ");
             String displayResMode = prefs.displayResolutionMode.get();
             setVisible("displayScale", displayResMode.contentEquals("scaled"));
             setVisible("displayResolutionExact", displayResMode.contentEquals("exact"));
@@ -354,10 +390,12 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
                     Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
                     && ContextCompat.checkSelfPermission(requireContext(), POST_NOTIFICATIONS) == PERMISSION_DENIED;
             setVisible("requestNotificationPermission", requestNotificationPermissionVisible);
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx113: ");
         }
 
         /** @noinspection SameParameterValue*/
         private void setNoActionOptionText(Preference preference, CharSequence text) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx11133: ");
             if (preference == null)
                 return;
             ListPreference p = (ListPreference) preference;
@@ -370,13 +408,15 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
         @Override
         public void onCreate(final Bundle savedInstanceState) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx1119: ");
             super.onCreate(savedInstanceState);
-
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx111: ");
             updatePreferencesLayout();
         }
 
         @Override
         public boolean onPreferenceTreeClick(@NonNull Preference p) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx120: ");
             if (p.getKey() == null)
                 return super.onPreferenceTreeClick(p);
 
@@ -401,6 +441,7 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
         @SuppressLint("ApplySharedPref")
         @Override
         public boolean onPreferenceChange(Preference preference, Object newValue) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx121: ");
             String key = preference.getKey();
             Log.e("Preferences", "changed preference: " + key);
             handler.removeCallbacks(updateLayout);
@@ -457,9 +498,13 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
         @Override
         public void onDisplayPreferenceDialog(@NonNull Preference preference) {
+            Log.i("TAG", "onCreate xxxxxxxxxxxxxxxx122: ");
             if ("extra_keys_config".contentEquals(preference.getKey())) {
                 @SuppressLint("InflateParams")
-                View view = getLayoutInflater().inflate(R.layout.extra_keys_config, null, false);
+                // ZeroTermux modify {@
+                // View view = getLayoutInflater().inflate(R.layout.extra_keys_config, null, false);
+                View view = getLayoutInflater().inflate(R.layout.extra_keys_config_x11, null, false);
+                // @}
                 EditText config = view.findViewById(R.id.extra_keys_config);
                 config.setTypeface(Typeface.MONOSPACE);
                 config.setText(prefs.extra_keys_config.get());
@@ -505,7 +550,10 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 
             try {
                 if (intent != null && intent.getExtras() != null) {
-                    Prefs p = (MainActivity.getInstance() != null) ? new Prefs(MainActivity.getInstance()) : (prefs != null ? prefs : new Prefs(context));
+                    // ZeroTermux modify {@
+                    //Prefs p = (MainActivity.getInstance() != null) ? new Prefs(MainActivity.getInstance()) : (prefs != null ? prefs : new Prefs(context));
+                    Prefs p = (MainActivity.getInstance() != null) ? new Prefs(MainActivity.getInstance().mActivity) : (prefs != null ? prefs : new Prefs(context));
+                    // @}
                     if (intent.getStringExtra("list") != null) {
                         String result = "";
                         for (PrefsProto.Preference pref : p.keys.values()) {
@@ -647,6 +695,13 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             System.err.print("termux-x11-preference [list] {key:value} [{key2:value2}]...");
             System.exit(0);
         }
+        // ZeroTermux add {@
+        @Keep
+        @SuppressLint("WrongConstant")
+        public static void mainZeroTermux(String[] args) {
+            main(args);
+        }
+        // @}
 
         @Keep
         @SuppressLint("WrongConstant")
@@ -657,10 +712,12 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
             Intent i = new Intent("com.termux.x11.CHANGE_PREFERENCE");
             Bundle bundle = new Bundle();
             boolean inputIsFile = !android.system.Os.isatty(in.getFileDescriptor());
-
             in.detachFd();
             bundle.putBinder(null, iface);
-            i.setPackage("com.termux.x11");
+            // ZeroTermux modify {@
+            //i.setPackage("com.termux.x11");
+            i.setPackage("com.termux");
+            // @}
             i.putExtra(null, bundle);
             if (getuid() == 0 || getuid() == 2000)
                 i.setFlags(0x00400000 /* FLAG_RECEIVER_FROM_SHELL */);

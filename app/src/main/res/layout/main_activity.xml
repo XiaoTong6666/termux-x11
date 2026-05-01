@@ -32,7 +32,7 @@
             android:background="@android:color/black"
             android:gravity="center_horizontal|center_vertical"
             android:orientation="vertical"
-            android:visibility="visible">
+            android:visibility="gone">
 
             <ImageView
                 android:id="@+id/x11_image"
@@ -99,6 +99,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:translationX="0px"
+        android:visibility="gone"
         android:translationY="0px">
 
         <Button
@@ -191,7 +192,7 @@
             android:id="@+id/mouse_buttons_secondary_layer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            tools:visibility="visible">
+            tools:visibility="gone">
 
             <Button
                 android:id="@+id/mouse_button_left_click"
@@ -255,6 +256,7 @@
             android:id="@+id/mouse_buttons_position"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:visibility="gone"
             android:minWidth="40dp"
             android:minHeight="40dp"
             android:adjustViewBounds="true"
@@ -268,7 +270,7 @@
     </LinearLayout>
 
     <androidx.viewpager.widget.ViewPager
-        android:id="@+id/terminal_toolbar_view_pager"
+        android:id="@+id/terminal_toolbar_view_pager_x11"
         android:visibility="gone"
         android:layout_width="match_parent"
         android:layout_height="37.5dp"

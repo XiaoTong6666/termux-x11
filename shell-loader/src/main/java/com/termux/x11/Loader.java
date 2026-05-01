@@ -1,6 +1,8 @@
 package com.termux.x11;
 import com.termux.x11.shell_loader.BuildConfig;
 
+import java.util.Arrays;
+
 public class Loader {
     /**
      * Command-line entry point.
@@ -18,19 +20,28 @@ public class Loader {
         cls = cls != null ? cls : BuildConfig.CLASS_ID;
         try {
             android.content.pm.PackageInfo targetInfo = (android.os.Build.VERSION.SDK_INT <= 32) ?
-                    android.app.ActivityThread.getPackageManager().getPackageInfo(BuildConfig.APPLICATION_ID, android.content.pm.PackageManager.GET_SIGNATURES, 0) :
-                    android.app.ActivityThread.getPackageManager().getPackageInfo(BuildConfig.APPLICATION_ID, (long) android.content.pm.PackageManager.GET_SIGNATURES, 0);
+                    android.app.ActivityThread.getPackageManager().getPackageInfo("com.termux", android.content.pm.PackageManager.GET_SIGNATURES, 0) :
+                    android.app.ActivityThread.getPackageManager().getPackageInfo("com.termux", (long) android.content.pm.PackageManager.GET_SIGNATURES, 0);
             assert targetInfo != null : BuildConfig.packageNotInstalledErrorText.replace("ARCH", android.os.Build.SUPPORTED_ABIS[0]);
-            assert targetInfo.signatures.length == 1 && BuildConfig.SIGNATURE == targetInfo.signatures[0].hashCode() : BuildConfig.packageSignatureMismatchErrorText;
-
+            //assert targetInfo.signatures.length == 1 && BuildConfig.SIGNATURE == targetInfo.signatures[0].hashCode() : BuildConfig.packageSignatureMismatchErrorText;
             android.util.Log.i(BuildConfig.logTag, "loading " + targetInfo.applicationInfo.sourceDir + "::" + BuildConfig.CLASS_ID + "::main of " + BuildConfig.APPLICATION_ID + " application (commit " + BuildConfig.COMMIT + ")");
+
             Class<?> targetClass = Class.forName(cls, true,
                     new dalvik.system.PathClassLoader(targetInfo.applicationInfo.sourceDir, null, ClassLoader.getSystemClassLoader()));
-            targetClass.getMethod("main", String[].class).invoke(null, (Object) args);
+            android.util.Log.e(BuildConfig.logTag, "SurfaceChangedListener Loader targetClass: " + targetClass.getName());
+            android.util.Log.e(BuildConfig.logTag, "SurfaceChangedListener Loader sourceDir: " + targetInfo.applicationInfo.sourceDir);
+            android.util.Log.e(BuildConfig.logTag, "SurfaceChangedListener cls: " + cls);
+            android.util.Log.e(BuildConfig.logTag, "SurfaceChangedListener cls: " + cls);
+            android.util.Log.e(BuildConfig.logTag, "SurfaceChangedListener args: " + Arrays.toString(args));
+            android.util.Log.e(BuildConfig.logTag, "SurfaceChangedListener ClassLoader.getSystemClassLoader(): " + ClassLoader.getSystemClassLoader());
+            targetClass.getMethod("mainZeroTermux", String[].class).invoke(null, (Object) args);
+
         } catch (AssertionError e) {
             System.err.println(e.getMessage());
+            android.util.Log.e(BuildConfig.logTag, "Loader error", e);
         } catch (java.lang.reflect.InvocationTargetException e) {
             e.getCause().printStackTrace(System.err);
+            android.util.Log.e(BuildConfig.logTag, "Loader error", e);
         } catch (Throwable e) {
             android.util.Log.e(BuildConfig.logTag, "Loader error", e);
             e.printStackTrace(System.err);
