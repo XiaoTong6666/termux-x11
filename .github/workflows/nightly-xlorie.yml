@@ -6,7 +6,6 @@ on:
     branches:
       - master
       - main
-      - zt
     paths-ignore:
       - '**.md'
       - 'img/**'
