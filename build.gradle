@@ -69,7 +69,7 @@ tasks.register("downloadNightlyXlorie") {
     def checksumOutput = new File(xlorieOutputDir, "SHA256SUMS")
 
     outputs.files(outputFiles + [checksumOutput])
-    outputs.upToDateWhen { false }
+    outputs.upToDateWhen { outputFiles.every { it.exists() } }
 
     doLast {
         def githubToken = System.getenv("GITHUB_TOKEN")
