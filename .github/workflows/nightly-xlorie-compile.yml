@@ -1,0 +1,180 @@
+name: nightly-xlorie-compile
+
+on:
+  workflow_dispatch:
+    inputs:
+      ndk-version:
+        description: 'Android NDK version'
+        required: false
+        default: '27.0.12077973'
+        type: string
+      publish-release:
+        description: '编译完成后发布到 GitHub Release（取消勾选则仅输出到 Actions Artifact）'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-xlorie-compile
+  cancel-in-progress: true
+
+env:
+  MIN_SDK: 26
+  RELEASE_TAG: nightly-xlorie-zt
+
+jobs:
+  compile:
+    name: compile-${{ matrix.abi }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86, x86_64]
+        include:
+          - abi: arm64-v8a
+            asset-name: libXlorie-arm64-v8a.so
+          - abi: armeabi-v7a
+            asset-name: libXlorie-armeabi-v7a.so
+          - abi: x86
+            asset-name: libXlorie-x86.so
+          - abi: x86_64
+            asset-name: libXlorie-x86_64.so
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Set up Android NDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'ndk;${{ inputs.ndk-version || env.NDK_VERSION || ''27.0.12077973'' }}'
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bison ninja-build
+          echo "Bison version: $(bison --version | head -1)"
+          echo "Python version: $(python3 --version)"
+          echo "CMake version: $(cmake --version | head -1)"
+          echo "Ninja version: $(ninja --version)"
+
+      - name: Setup NDK path
+        id: ndk
+        run: |
+          NDK_PATH="${ANDROID_SDK_ROOT}/ndk/${{ inputs.ndk-version || '27.0.12077973' }}"
+          if [ ! -d "$NDK_PATH" ]; then
+            # Fallback: find any installed NDK
+            NDK_PATH=$(ls -d "${ANDROID_SDK_ROOT}"/ndk/*/ 2>/dev/null | head -1)
+          fi
+          echo "path=${NDK_PATH}" >> $GITHUB_OUTPUT
+          echo "Using NDK: ${NDK_PATH}"
+          ls "${NDK_PATH}/toolchains/llvm/prebuilt/linux-x86_64/bin/" | head -5
+
+      - name: Configure CMake (${{ matrix.abi }})
+        working-directory: app/src/main/cpp
+        run: |
+          cmake -B build-${{ matrix.abi }} \
+            -DCMAKE_TOOLCHAIN_FILE=${{ steps.ndk.outputs.path }}/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=${{ matrix.abi }} \
+            -DANDROID_PLATFORM=android-${MIN_SDK} \
+            -DCMAKE_BUILD_TYPE=Release \
+            -G Ninja
+
+      - name: Build libXlorie (${{ matrix.abi }})
+        working-directory: app/src/main/cpp
+        run: cmake --build build-${{ matrix.abi }} --target Xlorie
+
+      - name: Strip debug symbols
+        run: |
+          TOOLCHAIN=${{ steps.ndk.outputs.path }}/toolchains/llvm/prebuilt/linux-x86_64/bin
+          cp app/src/main/cpp/build-${{ matrix.abi }}/libXlorie.so \
+             ${{ matrix.asset-name }}
+          ${TOOLCHAIN}/llvm-strip --strip-debug ${{ matrix.asset-name }}
+          echo "Stripped size: $(ls -lh ${{ matrix.asset-name }} | awk '{print $5}')"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libXlorie-${{ matrix.abi }}
+          path: ${{ matrix.asset-name }}
+          if-no-files-found: error
+
+  collect:
+    name: collect-all
+    runs-on: ubuntu-latest
+    needs: compile
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: libXlorie-*
+          path: dist
+          merge-multiple: true
+
+      - name: Generate SHA256SUMS
+        working-directory: dist
+        run: |
+          sha256sum libXlorie-*.so > SHA256SUMS
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+          echo "=== Files ==="
+          ls -lh
+
+      - name: Upload combined artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libXlorie-all
+          path: |
+            dist/libXlorie-arm64-v8a.so
+            dist/libXlorie-armeabi-v7a.so
+            dist/libXlorie-x86.so
+            dist/libXlorie-x86_64.so
+            dist/SHA256SUMS
+          if-no-files-found: error
+
+  publish:
+    name: publish-release
+    runs-on: ubuntu-latest
+    needs: collect
+    if: ${{ inputs.publish-release }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download combined artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: libXlorie-all
+          path: dist
+
+      - name: Move nightly tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -f "${RELEASE_TAG}" "${GITHUB_SHA}"
+          git push origin "refs/tags/${RELEASE_TAG}" --force
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "${RELEASE_TAG}" >/dev/null 2>&1 && \
+            gh release delete "${RELEASE_TAG}" --yes || true
+
+          gh release create "${RELEASE_TAG}" \
+            dist/libXlorie-arm64-v8a.so \
+            dist/libXlorie-armeabi-v7a.so \
+            dist/libXlorie-x86.so \
+            dist/libXlorie-x86_64.so \
+            dist/SHA256SUMS \
+            --title "nightly-xlorie-zt" \
+            --notes "Automated libXlorie.so build for ${GITHUB_SHA}. Compiled from app/src/main/cpp/ with NDK." \
+            --target "${GITHUB_SHA}"
