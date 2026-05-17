@@ -301,7 +301,6 @@ public class LoriePreferences extends AppCompatActivity implements PreferenceFra
 			//with("showAdditionalKbd", p -> p.setLayoutResource(R.layout.preference));
             //with("version", p -> p.setSummary(BuildConfig.VERSION_NAME));
             with("showAdditionalKbd", p -> p.setLayoutResource(R.layout.preference_x11));
-            with("version", p -> p.setSummary("1"));
 			// @}
 
             setSummary("displayStretch", R.string.lorie_pref_summary_requiresExactOrCustom);
