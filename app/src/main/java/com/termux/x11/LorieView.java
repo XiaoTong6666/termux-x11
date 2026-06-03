@@ -347,7 +347,6 @@ public class LorieView extends SurfaceView implements InputStub {
     private final Point p = new Point();
     boolean commitedText = false;
     private final InputConnection mConnection = new InputConnectionWrapper(new BaseInputConnection(this, false) {
-        private final MainActivity a = MainActivity.getInstance();
         private CharSequence currentComposingText = null;
 
         // We can not inspect X windows and get currently edited text
@@ -479,8 +478,9 @@ public class LorieView extends SurfaceView implements InputStub {
 
             currentComposingText = reuse ? newText : null;
 
-            if (a.useTermuxEKBarBehaviour && a.mExtraKeys != null)
-                a.mExtraKeys.unsetSpecialKeys();
+            MainActivity activity = MainActivity.getInstance();
+            if (activity != null && activity.useTermuxEKBarBehaviour && activity.mExtraKeys != null)
+                activity.mExtraKeys.unsetSpecialKeys();
             commitedText = true;
             return true;
         }
